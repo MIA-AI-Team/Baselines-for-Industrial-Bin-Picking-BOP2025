@@ -179,8 +179,8 @@ def get_detections(detections, scene_id, image_id, obj_id):
 
 def get_test_data_xyz(input_dir, cad_dir, det_score_thresh, cfg, detections, scene_id, im_id, obj_id):
 
-    rgb_path = os.path.join(input_dir, "gray", f"{im_id:06d}.png")
-    depth_path = os.path.join(input_dir, "depth", f"{im_id:06d}.png")
+    rgb_path = os.path.join(input_dir, "rgb_cam1", f"{im_id:06d}.png")
+    depth_path = os.path.join(input_dir, "depth_cam1", f"{im_id:06d}.png")
     cam_path = os.path.join(input_dir, "scene_camera.json")
     cad_path = os.path.join(cad_dir, f"obj_{obj_id:06d}.ply")
 
@@ -188,7 +188,7 @@ def get_test_data_xyz(input_dir, cad_dir, det_score_thresh, cfg, detections, sce
     assert len(dets_) > 0
     dets = []
     for det in dets_:
-        if det['score'] > det_score_thresh:
+        if float(det['score']) > float(det_score_thresh):
             dets.append(det)
     del dets_, detections
 
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     gorilla.solver.load_checkpoint(model=model, filename=checkpoint)
 
     # load test targets
-    test_targets_path = f"../Data/{cfg.dataset_name}/test_targets_multiview_bop25.json"
+    test_targets_path = f"{cfg.dataset_name}/test_targets_multiview_bop25.json"
     with open (test_targets_path, "r") as f:    
         test_targets = json.load(f)
 

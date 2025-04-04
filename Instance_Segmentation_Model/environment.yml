@@ -33,4 +33,5 @@ dependencies:
     - wandb
     - distinctipy
     - imageio
+    - rich
 # bop https://github.com/thodan/bop_toolkit.git

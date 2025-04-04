@@ -136,15 +136,15 @@ def batch_input_data(depth_path, cam_path, device):
 def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     logging.info("Initializing template")
     
-    test_targets_path = '/media/xyz/Extreme Pro/Industry_BOP/Benchmark/SAM-6D/SAM-6D/Data/XYZ/test_targets_bop19.json' 
+    test_targets_path = '/content/drive/MyDrive/bpc_opencv_dataset/ipd/test_targets_bop19.json' 
     with open(test_targets_path, "r") as f:
         test_target = json.load(f)
     scene_id = int(os.path.basename(input_dir))
     im_id = [item['im_id'] for item in test_target if item['scene_id']==scene_id][0]
     obj_id = [item['obj_id'] for item in test_target if item['scene_id']==scene_id][0]
 
-    rgb_path = os.path.join(input_dir, "gray", f"{im_id:06d}.png")
-    depth_path = os.path.join(input_dir, "depth", f"{im_id:06d}.png")
+    rgb_path = os.path.join(input_dir, "rgb_cam1", f"{im_id:06d}.png")
+    depth_path = os.path.join(input_dir, "depth_cam1", f"{im_id:06d}.png")
     cam_path = next(iter(glob.glob(os.path.join(input_dir, "scene_camera.json"))), None)
     cad_path = os.path.join(cad_folder, f"obj_{obj_id:06d}.ply")
 
