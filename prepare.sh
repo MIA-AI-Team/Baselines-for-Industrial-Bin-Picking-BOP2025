@@ -3,12 +3,12 @@ conda env create -f environment.yaml
 conda activate sam6d
 
 ### Install pointnet2
-cd Pose_Estimation_Model/model/pointnet2
+cd /content/Baselines-for-Industrial-Bin-Picking-BOP2025/Pose_Estimation_Model/model/pointnet2
 python setup.py install
 cd ../../../
 
 ### Download ISM pretrained model
-cd Instance_Segmentation_Model
+cd /content/Baselines-for-Industrial-Bin-Picking-BOP2025/Instance_Segmentation_Model
 which python
 # sudo /path/to/your/python download_sam.py
 python download_sam.py
@@ -23,7 +23,7 @@ python download_dinov2.py
 cd ../
 
 ### Download PEM pretrained model
-# cd Pose_Estimation_Model
+cd /content/Baselines-for-Industrial-Bin-Picking-BOP2025/Pose_Estimation_Model
 # mkdir -p checkpoints && gdown --no-cookies --no-check-certificate -O 'checkpoints/sam-6d-pem-base.pth' 1joW9IvwsaRJYxoUmGo68dBVg-HcFNyI7
 python download_sam6d-pem.py
 _ext_src
