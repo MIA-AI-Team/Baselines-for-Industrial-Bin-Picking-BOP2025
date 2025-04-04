@@ -250,20 +250,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--segmentor_model", default='sam', help="The segmentor model in ISM")
     parser.add_argument("--output_dir", nargs="?", help="Path to root directory of the output")
-    parser.add_argument("--input_dir", nargs="?", help="Path to input data")
+    parser.add_argument("--input_dir", nargs="?", help="Path to input data (single scene folder)")
     parser.add_argument("--template_dir", nargs="?", help="Path to templates")
     parser.add_argument("--cad_dir", nargs="?", help="Path to CAD(mm)")
-    # parser.add_argument("--cad_path", nargs="?", help="Path to CAD(mm)")
-    # parser.add_argument("--rgb_path", nargs="?", help="Path to RGB image")
-    # parser.add_argument("--depth_path", nargs="?", help="Path to Depth image(mm)")
-    # parser.add_argument("--cam_path", nargs="?", help="Path to camera information")
     parser.add_argument("--stability_score_thresh", default=0.97, type=float, help="stability_score_thresh of SAM")
     args = parser.parse_args()
-    # os.makedirs(f"{args.output_dir}/sam6d_results", exist_ok=True)
-    # run_inference(
-    #     args.segmentor_model, args.output_dir, args.cad_path, args.rgb_path, args.depth_path, args.cam_path, 
-    #     stability_score_thresh=args.stability_score_thresh,
-    # )
 
     with initialize(version_base=None, config_path="configs"):
         cfg = compose(config_name='run_inference.yaml')
@@ -281,28 +272,18 @@ if __name__ == "__main__":
 
     logging.info("Initializing model")
     model = instantiate(cfg.model)
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.descriptor_model.model = model.descriptor_model.model.to(device)
     model.descriptor_model.model.device = device
-    # if there is predictor in the model, move it to device
     if hasattr(model.segmentor_model, "predictor"):
-        model.segmentor_model.predictor.model = (
-            model.segmentor_model.predictor.model.to(device)
-        )
+        model.segmentor_model.predictor.model = model.segmentor_model.predictor.model.to(device)
     else:
         model.segmentor_model.model.setup_model(device=device, verbose=True)
     logging.info(f"Moving models to {device} done!")
 
-    input_folders = sorted(os.listdir(args.input_dir))
-    with Progress() as progress:
-        input_tqdm = progress.add_task('input_folders', total=len(input_folders))    
-        for input_folder in input_folders:
-            input_dir = os.path.join(args.input_dir, input_folder)
-            output_dir = os.path.join(args.output_dir, input_folder)
-            os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
-            # if len(os.listdir(f"{output_dir}/sam6d_results")) > 0:
-            #     progress.update(input_tqdm, advance=1)
-            #     continue
-            run_inference(model, output_dir, input_dir, args.template_dir, args.cad_dir)
-            progress.update(input_tqdm, advance=1)
+    # Process a single scene instead of iterating through multiple scene folders.
+    input_dir = args.input_dir  # Ensure this is your scene folder, e.g., .../000000
+    output_dir = args.output_dir  # Your desired output directory for this scene
+    os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
+    run_inference(model, output_dir, input_dir, args.template_dir, args.cad_dir)
