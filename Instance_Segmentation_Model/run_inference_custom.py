@@ -2,12 +2,14 @@ import os, sys
 import numpy as np
 import shutil
 from tqdm import tqdm
+import cv2
 import time
 import torch
 from PIL import Image
 import gc
 import logging
 import os, sys
+import random
 import os.path as osp
 from hydra import initialize, compose
 # set level logging
@@ -201,7 +203,7 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     query_decriptors, query_appe_descriptors = model.descriptor_model.forward(np.array(rgb), detections)
 
     mask_output_dir = os.path.join(output_dir, "segmentation_masks")
-    save_segmentation_masks(detections, mask_output_dir)
+    overlay_masks_with_edges(detections, mask_output_dir)
 
     # matching descriptors
     (
@@ -250,48 +252,84 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     # vis_img.save(f"{output_dir}/sam6d_results/vis_ism.png")
     visualize_all(rgb, detections, f"{output_dir}/sam6d_results")
 
-def save_segmentation_masks(detections, output_dir):
+def overlay_masks_with_edges(
+    original_image_pil, 
+    detections, 
+    output_path,
+    edge_thickness=2
+):
     """
-    Saves each segmentation mask from the detections to the specified output directory.
+    Overlays the edges of segmentation masks onto an original image, 
+    each mask gets a different color.
     
     Parameters:
-    - detections: a Detections object containing a list of segmentation masks.
-    - output_dir: directory where the mask images will be saved.
+    -----------
+    original_image_path : str
+        Path to the original (real) image.
+    detections : Detections
+        A Detections object containing a list of segmentation masks (detections.masks).
+        Each mask can be a PyTorch tensor or a NumPy array.
+    output_path : str
+        Path to save the overlaid image (e.g., "output.png").
+    edge_thickness : int, optional
+        Thickness of the mask edges to be drawn.
     """
-    os.makedirs(output_dir, exist_ok=True)
     
+    original_image = np.array(original_image_pil)
+
+    # 2. Iterate over each segmentation mask
     for i, mask in enumerate(detections.masks):
-        # Convert the mask to a NumPy array if it is a PyTorch tensor.
+        # Convert the mask to a NumPy array if needed
         if isinstance(mask, torch.Tensor):
             mask_np = mask.detach().cpu().numpy()
         else:
             mask_np = np.array(mask)
         
-        # Remove any singleton dimensions.
+        # Ensure it is 2D (height x width)
         mask_np = np.squeeze(mask_np)
-        
-        # Optionally, check if the shape is as expected.
         if mask_np.ndim != 2:
-            print(f"Warning: Mask {i} has unexpected shape {mask_np.shape}. Please verify dimensions.")
-            # If you know the intended shape, you can reshape accordingly.
-            # For example, if you expect a mask of size (height, width), do:
-            # mask_np = mask_np.reshape((height, width))
-        
-        # Normalize the mask data if needed.
-        if mask_np.dtype == bool:
-            mask_np = mask_np.astype(np.uint8) * 255
-        elif mask_np.dtype != np.uint8:
-            mask_np = (mask_np * 255).astype(np.uint8)
-        
-        # Convert the NumPy array to a PIL Image and save it.
-        try:
-            mask_image = Image.fromarray(mask_np)
-        except Exception as e:
-            print(f"Error converting mask {i} to image: {e}")
+            print(f"Warning: Mask {i} has unexpected shape {mask_np.shape}.")
+            # Attempt a reshape if you know the intended dimension, 
+            # otherwise continue or skip
             continue
         
-        mask_path = os.path.join(output_dir, f"detection_mask_{i}.png")
-        mask_image.save(mask_path)
+        # Convert boolean or float mask to a proper 8-bit format
+        # Typically, True/False or 1.0/0.0 become 255/0 for drawing
+        if mask_np.dtype == bool:
+            mask_8u = (mask_np.astype(np.uint8)) * 255
+        else:
+            # assuming it's a normalized float (0.0 to 1.0)
+            mask_8u = (mask_np * 255).astype(np.uint8)
+        
+        # 3. Find contours (edges) in the mask
+        # cv2.RETR_EXTERNAL: retrieves only external contours
+        # cv2.CHAIN_APPROX_SIMPLE: compresses horizontal, vertical, and diagonal segments 
+        # into their end points
+        contours, hierarchy = cv2.findContours(
+            mask_8u, 
+            cv2.RETR_EXTERNAL, 
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+        
+        # Generate a random color for each mask's edges
+        # e.g. random between [0, 255] for R, G, B
+        color = (
+            random.randint(0, 255), 
+            random.randint(0, 255), 
+            random.randint(0, 255)
+        )
+        
+        # 4. Draw the contours on the original image
+        cv2.drawContours(
+            image=original_image, 
+            contours=contours, 
+            contourIdx=-1,         # draw all contours
+            color=color, 
+            thickness=edge_thickness
+        )
+
+    # 5. Save the final image with all edges drawn
+    cv2.imwrite(output_path, original_image)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
