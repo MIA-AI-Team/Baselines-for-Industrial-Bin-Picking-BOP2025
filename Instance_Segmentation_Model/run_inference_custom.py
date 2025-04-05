@@ -155,7 +155,7 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
 
     rgb_path = os.path.join(input_dir, "rgb_cam1", f"{im_id:06d}.png")
     depth_path = os.path.join(input_dir, "depth_cam1", f"{im_id:06d}.png")
-    cam_path = next(iter(glob.glob(os.path.join(input_dir, "scene_camera.json"))), None)
+    cam_path = next(iter(glob.glob(os.path.join(input_dir, "scene_camera_cam1.json"))), None)
     cad_path = os.path.join(cad_folder, f"obj_{obj_id:06d}.ply")
 
     template_dir = os.path.join(template_folder, f"obj_{obj_id:06d}")
@@ -198,6 +198,19 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     detections = model.segmentor_model.generate_masks(np.array(rgb))
     detections = Detections(detections)
     query_decriptors, query_appe_descriptors = model.descriptor_model.forward(np.array(rgb), detections)
+
+    ###########
+    # for debugging 
+    for i, mask in enumerate(detections.masks):
+        if mask.dtype == bool:
+            mask = mask.astype(np.uint8) * 255
+        elif mask.dtype != np.uint8:
+            mask = (mask * 255).astype(np.uint8)
+    
+    mask_image = Image.fromarray(mask)
+    mask_image.save(os.path.join("/content/output_fastsam/", f"detection_mask_{i}.png"))
+    print("\n", query_decriptors, "\n", query_appe_descriptors)
+    ###########
 
     # matching descriptors
     (
