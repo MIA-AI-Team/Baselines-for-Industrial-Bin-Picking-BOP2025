@@ -199,18 +199,8 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     detections = Detections(detections)
     query_decriptors, query_appe_descriptors = model.descriptor_model.forward(np.array(rgb), detections)
 
-    ###########
-    # for debugging 
-    for i, mask in enumerate(detections.masks):
-        if mask.dtype == bool:
-            mask = mask.astype(np.uint8) * 255
-        elif mask.dtype != np.uint8:
-            mask = (mask * 255).astype(np.uint8)
-    
-    mask_image = Image.fromarray(mask)
-    mask_image.save(os.path.join("/content/output_fastsam/", f"detection_mask_{i}.png"))
-    print("\n", query_decriptors, "\n", query_appe_descriptors)
-    ###########
+    mask_output_dir = os.path.join(output_dir, "segmentation_masks")
+    save_segmentation_masks(detections, mask_output_dir)
 
     # matching descriptors
     (
@@ -258,6 +248,49 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     # vis_img = visualize(rgb, detections, f"{output_dir}/sam6d_results/vis_ism.png")
     # vis_img.save(f"{output_dir}/sam6d_results/vis_ism.png")
     visualize_all(rgb, detections, f"{output_dir}/sam6d_results")
+
+def save_segmentation_masks(detections, output_dir):
+    """
+    Saves each segmentation mask from the detections to the specified output directory.
+    
+    Parameters:
+    - detections: a Detections object containing a list of segmentation masks.
+    - output_dir: directory where the mask images will be saved.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for i, mask in enumerate(detections.masks):
+        # Convert the mask to a NumPy array if it is a PyTorch tensor.
+        if isinstance(mask, torch.Tensor):
+            mask_np = mask.detach().cpu().numpy()
+        else:
+            mask_np = np.array(mask)
+        
+        # Remove any singleton dimensions.
+        mask_np = np.squeeze(mask_np)
+        
+        # Optionally, check if the shape is as expected.
+        if mask_np.ndim != 2:
+            print(f"Warning: Mask {i} has unexpected shape {mask_np.shape}. Please verify dimensions.")
+            # If you know the intended shape, you can reshape accordingly.
+            # For example, if you expect a mask of size (height, width), do:
+            # mask_np = mask_np.reshape((height, width))
+        
+        # Normalize the mask data if needed.
+        if mask_np.dtype == bool:
+            mask_np = mask_np.astype(np.uint8) * 255
+        elif mask_np.dtype != np.uint8:
+            mask_np = (mask_np * 255).astype(np.uint8)
+        
+        # Convert the NumPy array to a PIL Image and save it.
+        try:
+            mask_image = Image.fromarray(mask_np)
+        except Exception as e:
+            print(f"Error converting mask {i} to image: {e}")
+            continue
+        
+        mask_path = os.path.join(output_dir, f"detection_mask_{i}.png")
+        mask_image.save(mask_path)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
