@@ -203,7 +203,7 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     query_decriptors, query_appe_descriptors = model.descriptor_model.forward(np.array(rgb), detections)
 
     mask_output_dir = os.path.join(output_dir, "segmentation_masks")
-    overlay_masks_with_edges(detections, mask_output_dir)
+    overlay_masks_with_edges(rgb, detections, mask_output_dir)
 
     # matching descriptors
     (
@@ -329,7 +329,7 @@ def overlay_masks_with_edges(
         )
 
     # 5. Save the final image with all edges drawn
-    cv2.imwrite(output_path, original_image)
+    cv2.imwrite(f"{output_path}/mask.png", original_image)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
