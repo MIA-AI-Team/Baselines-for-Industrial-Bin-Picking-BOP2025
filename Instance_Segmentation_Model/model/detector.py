@@ -238,17 +238,34 @@ class Instance_Segmentation_Model(pl.LightningModule):
         proposal: N_query x imageH x imageW
         depth: imageH x imageW
         """
+        print("proposal.shape (before):", proposal.shape)
+
+        # 2) If you have a batch dimension of size 1, e.g. (1, N, H, W), remove it:
+        if proposal.dim() == 4 and proposal.shape[0] == 1:
+            # from (1, N, H, W) -> (N, H, W)
+            proposal = proposal.squeeze(0)
+
+        # 3) If you still have 4 dims, maybe your shape is (N, 1, H, W). Remove the middle dim if it’s 1:
+        if proposal.dim() == 4 and proposal.shape[1] == 1:
+            # from (N, 1, H, W) -> (N, H, W)
+            proposal = proposal.squeeze(1)
+
+        # 4) If it ended up with 2 dims (H, W), then re-insert N=1:
         if proposal.dim() == 2:
             proposal = proposal.unsqueeze(0)  # (1, H, W)
 
+        print("proposal.shape (after):", proposal.shape)
+
+        # 5) Now it should be (N_query, H, W). Unpack safely:
         (N_query, imageH, imageW) = proposal.shape
-        # (N_query, imageH, imageW) = proposal.squeeze_().shape
-        
-        masked_depth = proposal * (depth[None, ...].repeat(N_query, 1, 1))
+
+        # 6) Multiply depth into the mask
+        masked_depth = proposal * depth.unsqueeze(0).repeat(N_query, 1, 1)
         translate = depth_image_to_pointcloud_translate_torch(
             masked_depth, depth_scale, cam_intrinsic
         )
-        return translate.to(torch.float32)
+
+        return translate.float()
 
     def move_to_device(self):
         self.descriptor_model.model = self.descriptor_model.model.to(self.device)
