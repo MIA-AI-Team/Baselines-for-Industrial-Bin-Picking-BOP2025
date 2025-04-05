@@ -5,6 +5,7 @@ from tqdm import tqdm
 import time
 import torch
 from PIL import Image
+import gc
 import logging
 import os, sys
 import os.path as osp
@@ -351,4 +352,8 @@ if __name__ == "__main__":
             #     progress.update(input_tqdm, advance=1)
             #     continue
             run_inference(model, output_dir, input_dir, args.template_dir, args.cad_dir)
+
+            torch.cuda.empty_cache()
+            gc.collect()
+            
             progress.update(input_tqdm, advance=1)
