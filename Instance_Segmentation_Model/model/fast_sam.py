@@ -11,10 +11,10 @@ import logging
 import os.path as osp
 from typing import Any, Dict, List, Optional, Tuple
 import pytorch_lightning as pl
-# from ultralytics.yolo.v8.segment.predictor import SegmentationPredictor
-from ultralytics.models.yolo.segment import SegmentationPredictor
-from ultralytics.nn.autobackend import AutoBackend
+from ultralytics.yolo.v8.segment import SegmentationPredictor  # noqa
 from ultralytics.models.fastsam import FastSAMPredictor
+from ultralytics.nn.autobackend import AutoBackend
+
 
 class CustomYOLO(YOLO):
     def __init__(
@@ -33,11 +33,14 @@ class CustomYOLO(YOLO):
         )
         self.overrides["iou"] = iou
         self.overrides["conf"] = conf
+        if conf is None:
+            self.overrides["conf"] = 0.25
+            
         self.overrides["max_det"] = max_det
         self.overrides["verbose"] = verbose
         self.overrides["imgsz"] = segmentor_width_size
 
-        self.overrides["conf"] = 0.25
+        self.overrides["conf"] = conf
         self.overrides["mode"] = "predict"
         self.overrides["save"] = False
 
