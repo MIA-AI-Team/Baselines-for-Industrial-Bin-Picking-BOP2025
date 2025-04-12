@@ -11,7 +11,7 @@ import logging
 import os.path as osp
 from typing import Any, Dict, List, Optional, Tuple
 import pytorch_lightning as pl
-from ultralytics.yolo.v8.segment import SegmentationPredictor  # noqa
+# from ultralytics.yolo.v8.segment import SegmentationPredictor  # noqa
 from ultralytics.models.fastsam import FastSAMPredictor
 from ultralytics.nn.autobackend import AutoBackend
 
