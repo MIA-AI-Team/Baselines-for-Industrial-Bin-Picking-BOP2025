@@ -137,7 +137,9 @@ def mask_to_rle_pytorch(tensor: torch.Tensor) -> List[Dict[str, Any]]:
 
 def rle_to_mask(rle: Dict[str, Any]) -> np.ndarray:
     """Compute a binary mask from an uncompressed RLE."""
-    h, w = rle["size"]
+    # h, w = rle["size"]
+    h, w = rle["size"][-2:]  # Safe unpacking for [H, W] or [1, H, W]
+
     mask = np.empty(h * w, dtype=bool)
     idx = 0
     parity = False

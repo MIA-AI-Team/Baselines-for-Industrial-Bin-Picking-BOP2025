@@ -75,35 +75,65 @@ def AABB_to_OBB(AABB):
     return corners
 
 def depth_image_to_pointcloud_translate_torch(depth, scale, K):
-    u = torch.arange(0, depth.shape[2])
-    v = torch.arange(0, depth.shape[1])
+    batch_size = depth.shape[0]
+    height = depth.shape[1]
+    width = depth.shape[2]
+    
+    # Initialize results
+    sum_X = torch.zeros(batch_size, device=depth.device)
+    sum_Y = torch.zeros(batch_size, device=depth.device)
+    sum_Z = torch.zeros(batch_size, device=depth.device)
+    valid_counts = torch.zeros(batch_size, device=depth.device)
+    
+    # Process in batch chunks to reduce memory usage
+    for b_idx in range(batch_size):
+        # Get single depth map
+        single_depth = depth[b_idx:b_idx+1]  # Keep dimension
+        
+        # Process in row chunks
+        chunk_size = 200  # Adjust based on memory constraints
+        for start_row in range(0, height, chunk_size):
+            end_row = min(start_row + chunk_size, height)
+            
+            # Create coordinate grid for this chunk
+            v_chunk = torch.arange(start_row, end_row).to(depth.device)
+            u_chunk = torch.arange(0, width).to(depth.device)
+            v_grid, u_grid = torch.meshgrid(v_chunk, u_chunk, indexing="ij")  # Shape: [chunk_height, width]
 
-    u, v = torch.meshgrid(u, v, indexing="xy")
-    u = u.to(depth.device)
-    v = v.to(depth.device)
+            depth_chunk = single_depth[:, start_row:end_row, :]  # [1, chunk_height, width]
 
-    # depth metric is mm, depth_scale metric is m
-    # K metric is m
-    Z = depth * scale / 1000
-    X = (u - K[0, 2]) * Z / K[0, 0]
-    Y = (v - K[1, 2]) * Z / K[1, 1]
-
-    valid = Z > 0
-
-    X = X * valid
-    Y = Y * valid
-    Z = Z * valid
-
-    # average should run on valid point
-    valid_num = torch.count_nonzero(valid, axis=(1, 2)) + 1e-8
-    avg_X = torch.sum(X, axis=(1, 2)) / valid_num
-    avg_Y = torch.sum(Y, axis=(1, 2)) / valid_num
-    avg_Z = torch.sum(Z, axis=(1, 2)) / valid_num
-
-    translate = torch.vstack((avg_X, avg_Y, avg_Z)).permute(1, 0)
-
+            Z_chunk = depth_chunk * scale / 1000
+            X_chunk = (u_grid - K[0, 2]) * Z_chunk / K[0, 0]
+            Y_chunk = (v_grid - K[1, 2]) * Z_chunk / K[1, 1]
+            
+            valid_chunk = Z_chunk > 0
+            
+            # Apply validity mask
+            X_valid = X_chunk * valid_chunk
+            Y_valid = Y_chunk * valid_chunk
+            Z_valid = Z_chunk * valid_chunk
+            
+            # Accumulate sums and counts for this batch item
+            sum_X[b_idx] += torch.sum(X_valid)
+            sum_Y[b_idx] += torch.sum(Y_valid)
+            sum_Z[b_idx] += torch.sum(Z_valid)
+            valid_counts[b_idx] += torch.count_nonzero(valid_chunk)
+            
+            # Clear memory
+            del u_grid, v_grid, depth_chunk, Z_chunk, X_chunk, Y_chunk
+            del X_valid, Y_valid, Z_valid, valid_chunk
+            torch.cuda.empty_cache()
+    
+    # Compute averages
+    valid_counts = valid_counts + 1e-8  # Avoid division by zero
+    avg_X = sum_X / valid_counts
+    avg_Y = sum_Y / valid_counts
+    avg_Z = sum_Z / valid_counts
+    
+    # Create final result
+    translate = torch.stack((avg_X, avg_Y, avg_Z), dim=1)
+    
     return translate
-
 
 if __name__ == "__main__":
     mesh_path = (
