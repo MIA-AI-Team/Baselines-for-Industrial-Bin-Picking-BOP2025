@@ -129,50 +129,43 @@ class CustomDINOv2(pl.LightningModule):
         )
 
     def process_rgb_proposals(self, image_np, masks, boxes):
-        """
-        1. Normalize image with DINOv2 transfom
-        2. Mask and crop each proposals
-        3. Resize each proposals to predefined longest image size
-        """
-        num_proposals = len(masks)
-        rgb = self.rgb_normalize(image_np).to(masks.device).float()
-        # rgbs = rgb.unsqueeze(0).repeat(num_proposals, 1, 1, 1)
-        # masked_rgbs = rgbs * masks.unsqueeze(1)
-        # processed_masked_rgbs = self.rgb_proposal_processor(
-        #     masked_rgbs, boxes
-        # )  # [N, 3, target_size, target_size]
-        
-        MAX_BATCH_SIZE = 100
-        processed_results = []
-
-        if num_proposals > MAX_BATCH_SIZE:
-            # Process in batches
-            for start_idx in range(0, num_proposals, MAX_BATCH_SIZE):
-                end_idx = min(start_idx + MAX_BATCH_SIZE, num_proposals)
-                batch_masks = masks[start_idx:end_idx]
-                batch_boxes = boxes[start_idx:end_idx]
-                
-                # Process current batch
-                batch_rgbs = rgb.unsqueeze(0).repeat(len(batch_masks), 1, 1, 1)
-                batch_masked_rgbs = batch_rgbs * batch_masks.unsqueeze(1)
-                batch_processed = self.rgb_proposal_processor(
-                    batch_masked_rgbs, batch_boxes
-                )  # [batch_size, 3, target_size, target_size]
-                
-                processed_results.append(batch_processed)
-            
-            # Concatenate results
-            processed_masked_rgbs = torch.cat(processed_results, dim=0)
-
-        else:
-            # Original processing for small batches
-            rgbs = rgb.unsqueeze(0).repeat(num_proposals, 1, 1, 1)
-            masked_rgbs = rgbs * masks.unsqueeze(1)
-            processed_masked_rgbs = self.rgb_proposal_processor(
-                masked_rgbs, boxes
-            )  # [N, 3, target_size, target_size]
-        return processed_masked_rgbs
-
+      """Memory-optimized version that processes proposals one at a time
+      and uses CPU offloading when needed"""
+      
+      # Convert RGB once
+      rgb = self.rgb_normalize(image_np).to(masks.device).float()
+      num_proposals = len(masks)
+      
+      # For storing results - initialize on CPU to save GPU memory
+      processed_list = []
+      
+      for i in range(num_proposals):
+          # Move only the current mask and box to GPU
+          single_mask = masks[i:i+1]  # Keep dimension
+          single_box = boxes[i:i+1]
+          
+          # Process single item
+          single_rgb = rgb.unsqueeze(0)  # [1, C, H, W]
+          masked_rgb = single_rgb * single_mask.unsqueeze(1)
+          
+          processed = self.rgb_proposal_processor(masked_rgb, single_box)
+          
+          # Move result to CPU to free GPU memory
+          processed_cpu = processed.cpu()
+          processed_list.append(processed_cpu)
+          
+          # Clear GPU memory
+          del single_rgb, masked_rgb, processed
+          torch.cuda.empty_cache()
+      
+      # Stack results on CPU
+      if processed_list:
+          result_cpu = torch.cat(processed_list, dim=0)
+          # Move final result back to GPU only once
+          return result_cpu.to(masks.device)
+      else:
+          return torch.zeros((0, 3, self.proposal_size, self.proposal_size), device=masks.device)
+      
     @torch.no_grad()
     def compute_features(self, images, token_name):
         if token_name == "x_norm_clstoken":
