@@ -371,12 +371,12 @@ if __name__ == "__main__":
     model.descriptor_model.model = model.descriptor_model.model.to(device)
     model.descriptor_model.model.device = device
     # if there is predictor in the model, move it to device
-    if hasattr(model.segmentor_model, "predictor"):
-        model.segmentor_model.predictor.model = (
-            model.segmentor_model.predictor.model.to(device)
-        )
-    else:
-        model.segmentor_model.model.setup_model(device=device, verbose=True)
+    # if hasattr(model.segmentor_model, "predictor"):
+    #     model.segmentor_model.predictor.model = (
+    #         model.segmentor_model.predictor.model.to(device)
+    #     )
+    # else:
+    #     model.segmentor_model.model.setup_model(device=device, verbose=True)
     logging.info(f"Moving models to {device} done!")
 
     input_folders = sorted(os.listdir(args.input_dir))
