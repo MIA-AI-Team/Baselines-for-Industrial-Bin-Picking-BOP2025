@@ -15,6 +15,9 @@ import pytorch_lightning as pl
 from ultralytics.models.fastsam import FastSAMPredictor
 from ultralytics.nn.autobackend import AutoBackend
 
+from ultralytics import ASSETS, SAM, YOLO, FastSAM
+
+
 
 class CustomYOLO(YOLO):
     def __init__(
@@ -83,14 +86,16 @@ class FastSAM(object):
         segmentor_width_size=None,
         device=None,
     ):
-        self.model = CustomYOLO(
-            model=checkpoint_path,
-            iou=config.iou_threshold,
-            conf=config.conf_threshold,
-            max_det=config.max_det,
-            selected_device=device,
-            segmentor_width_size=segmentor_width_size,
-        )
+        # self.model = CustomYOLO(
+        #     model=checkpoint_path,
+        #     iou=config.iou_threshold,
+        #     conf=config.conf_threshold,
+        #     max_det=config.max_det,
+        #     selected_device=device,
+        #     segmentor_width_size=segmentor_width_size,
+        # )
+        self.model = FastSAM("FastSAM-s.pt")
+
         self.segmentor_width_size = segmentor_width_size
         self.current_device = device
         logging.info(f"Init FastSAM done!")
@@ -117,7 +122,7 @@ class FastSAM(object):
     def generate_masks(self, image) -> List[Dict[str, Any]]:
         if self.segmentor_width_size is not None:
             orig_size = image.shape[:2]
-        detections = self.model(image)
+        detections = self.model(image, retina_masks=True, imgsz=1024, conf=0.4, iou=0.9)
 
         masks = detections[0].masks.data
         boxes = detections[0].boxes.data[:, :4]  # two lasts:  confidence and class
