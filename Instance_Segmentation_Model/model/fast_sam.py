@@ -15,7 +15,7 @@ import pytorch_lightning as pl
 from ultralytics.models.fastsam import FastSAMPredictor
 from ultralytics.nn.autobackend import AutoBackend
 
-from ultralytics import ASSETS, SAM, YOLO, FastSAM
+import ultralytics
 
 
 
@@ -94,7 +94,7 @@ class FastSAM(object):
         #     selected_device=device,
         #     segmentor_width_size=segmentor_width_size,
         # )
-        self.model = FastSAM("FastSAM-s.pt")
+        self.model = ultralytics.FastSAM("FastSAM-s.pt")
 
         self.segmentor_width_size = segmentor_width_size
         self.current_device = device
