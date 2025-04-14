@@ -161,6 +161,9 @@ def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
     cam_path = next(iter(glob.glob(os.path.join(input_dir, "scene_camera_cam1.json"))), None)
     cad_path = os.path.join(cad_folder, f"obj_{obj_id:06d}.ply")
 
+    print(f"Scene ID: {scene_id}, Image ID: {im_id}, Object ID: {obj_id}")
+    print(f"RGB Path: {rgb_path}")
+
     template_dir = os.path.join(template_folder, f"obj_{obj_id:06d}")
     num_templates = len(glob.glob(f"{template_dir}/*.npy"))
     boxes, masks, templates = [], [], []
