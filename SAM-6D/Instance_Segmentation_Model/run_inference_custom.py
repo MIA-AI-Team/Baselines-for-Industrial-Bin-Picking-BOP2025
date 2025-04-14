@@ -43,46 +43,75 @@ inv_rgb_transform = T.Compose(
     )
 
 def visualize(rgb, detections, save_path="tmp.png"):
+    # Create a copy of the original image.
     img = rgb.copy()
+    
+    # Convert image to grayscale and then back to RGB to standardize processing.
     gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
     img = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-    colors = distinctipy.get_colors(len(detections))
-    alpha = 0.33
-
-    best_score = 0.
-    for mask_idx, det in enumerate(detections):
-        if best_score < det['score']:
-            best_score = det['score']
-            best_det = detections[mask_idx]
-
-    mask = rle_to_mask(best_det["segmentation"])
-    edge = canny(mask)
-    edge = binary_dilation(edge, np.ones((2, 2)))
-    obj_id = best_det["category_id"]
-    temp_id = obj_id - 1
-
-    r = int(255*colors[temp_id][0])
-    g = int(255*colors[temp_id][1])
-    b = int(255*colors[temp_id][2])
-    img[mask, 0] = alpha*r + (1 - alpha)*img[mask, 0]
-    img[mask, 1] = alpha*g + (1 - alpha)*img[mask, 1]
-    img[mask, 2] = alpha*b + (1 - alpha)*img[mask, 2]   
-    img[edge, :] = 255
     
+    # Generate distinct colors for each detection.
+    colors = distinctipy.get_colors(len(detections))
+    alpha = 0.33  # Blending factor for the overlay.
+
+    # Process each detection.
+    for det_idx, det in enumerate(detections):
+        # Decode RLE segmentation into a binary mask.
+        mask = rle_to_mask(det["segmentation"])
+        
+        # Detect edges using the Canny edge detector and dilate to enhance visibility.
+        edge = canny(mask)
+        edge = binary_dilation(edge, np.ones((2, 2)))
+        
+        # Compute object size as the number of pixels in the mask.
+        object_size = int(np.sum(mask))
+        
+        # Determine the color based on the category id.
+        obj_id = det["category_id"]
+        temp_id = obj_id - 1  # Adjust index to match color list indexing.
+        r = int(255 * colors[temp_id][0])
+        g = int(255 * colors[temp_id][1])
+        b = int(255 * colors[temp_id][2])
+        
+        # Overlay the color onto the detection area using alpha blending.
+        img[mask, 0] = alpha * r + (1 - alpha) * img[mask, 0]
+        img[mask, 1] = alpha * g + (1 - alpha) * img[mask, 1]
+        img[mask, 2] = alpha * b + (1 - alpha) * img[mask, 2]
+        
+        # Highlight the object boundaries in white.
+        img[edge, :] = 255
+        
+        # Compute the top-left point to place the annotation by finding the minimum (x, y)
+        # coordinates in the mask's pixel indices.
+        ys, xs = np.where(mask)
+        if len(ys) > 0 and len(xs) > 0:
+            top_left = (int(xs.min()), int(ys.min()))
+        else:
+            # Default to a fixed location if the mask is empty.
+            top_left = (10, 10)
+        
+        # Prepare the annotation text with score and size.
+        text = f"Score: {det['score']:.2f}, Size: {object_size} px"
+        
+        # Annotate the image by drawing the text. The text is white with a thickness of 2.
+        cv2.putText(img, text, top_left, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+    # Convert the NumPy image to a PIL image, save it, and reload it for side-by-side display.
     img = Image.fromarray(np.uint8(img))
     img.save(save_path)
     prediction = Image.open(save_path)
     
-    # concat side by side in PIL
-    img = np.array(img)
-    concat = Image.new('RGB', (img.shape[1] + prediction.size[0], img.shape[0]))
+    # Create a new blank image and concatenate the original and annotated images side-by-side.
+    img_np = np.array(img)
+    concat = Image.new('RGB', (img_np.shape[1] + prediction.size[0], img_np.shape[0]))
     concat.paste(rgb, (0, 0))
-    concat.paste(prediction, (img.shape[1], 0))
+    concat.paste(prediction, (img_np.shape[1], 0))
+    
     return concat
 
 def batch_input_data(depth_path, cam_path, device):
     batch = {}
-    cam_info = load_json(cam_path)
+    cam_info = load_json(cam_path)['0']
     depth = np.array(imageio.imread(depth_path)).astype(np.int32)
     cam_K = np.array(cam_info['cam_K']).reshape((3, 3))
     depth_scale = np.array(cam_info['depth_scale'])
@@ -118,12 +147,14 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
             model.segmentor_model.predictor.model.to(device)
         )
     else:
-        model.segmentor_model.model.setup_model(device=device, verbose=True)
+      pass
+        # model.segmentor_model.model.setup_model(device=device, verbose=True)
     logging.info(f"Moving models to {device} done!")
         
     
     logging.info("Initializing template")
-    template_dir = os.path.join(output_dir, 'templates')
+    template_dir = os.path.join(output_dir, 'templates/obj_000000')
+    print(template_dir)
     num_templates = len(glob.glob(f"{template_dir}/*.npy"))
     boxes, masks, templates = [], [], []
     for idx in range(num_templates):

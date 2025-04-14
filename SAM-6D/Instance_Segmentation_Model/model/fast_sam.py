@@ -11,8 +11,12 @@ import logging
 import os.path as osp
 from typing import Any, Dict, List, Optional, Tuple
 import pytorch_lightning as pl
-from ultralytics import yolo  # noqa
+# from ultralytics.yolo.v8.segment import SegmentationPredictor  # noqa
+from ultralytics.models.fastsam import FastSAMPredictor
 from ultralytics.nn.autobackend import AutoBackend
+
+import ultralytics
+
 
 
 class CustomYOLO(YOLO):
@@ -32,15 +36,18 @@ class CustomYOLO(YOLO):
         )
         self.overrides["iou"] = iou
         self.overrides["conf"] = conf
+        if conf is None:
+            self.overrides["conf"] = 0.25
+            
         self.overrides["max_det"] = max_det
         self.overrides["verbose"] = verbose
         self.overrides["imgsz"] = segmentor_width_size
 
-        self.overrides["conf"] = 0.25
+        self.overrides["conf"] = conf
         self.overrides["mode"] = "predict"
         self.overrides["save"] = False
 
-        self.predictor = yolo.v8.segment.SegmentationPredictor(
+        self.predictor = FastSAMPredictor(
             overrides=self.overrides, _callbacks=self.callbacks
         )
 
@@ -79,14 +86,16 @@ class FastSAM(object):
         segmentor_width_size=None,
         device=None,
     ):
-        self.model = CustomYOLO(
-            model=checkpoint_path,
-            iou=config.iou_threshold,
-            conf=config.conf_threshold,
-            max_det=config.max_det,
-            selected_device=device,
-            segmentor_width_size=segmentor_width_size,
-        )
+        # self.model = CustomYOLO(
+        #     model=checkpoint_path,
+        #     iou=config.iou_threshold,
+        #     conf=config.conf_threshold,
+        #     max_det=config.max_det,
+        #     selected_device=device,
+        #     segmentor_width_size=segmentor_width_size,
+        # )
+        self.model = ultralytics.FastSAM("mobile_sam.pt")
+
         self.segmentor_width_size = segmentor_width_size
         self.current_device = device
         logging.info(f"Init FastSAM done!")
@@ -113,7 +122,7 @@ class FastSAM(object):
     def generate_masks(self, image) -> List[Dict[str, Any]]:
         if self.segmentor_width_size is not None:
             orig_size = image.shape[:2]
-        detections = self.model(image)
+        detections = self.model(image, retina_masks=True, imgsz=1024, conf=0.4, iou=0.9)
 
         masks = detections[0].masks.data
         boxes = detections[0].boxes.data[:, :4]  # two lasts:  confidence and class
