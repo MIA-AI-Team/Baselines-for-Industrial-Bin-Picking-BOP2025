@@ -153,7 +153,10 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
         
     
     logging.info("Initializing template")
-    template_dir = os.path.join(output_dir, 'templates/obj_000000')
+    cad_filename = os.path.basename(cad_path)
+    object_name = os.path.splitext(cad_filename)[0]
+
+    template_dir = os.path.join(output_dir, f'templates/{object_name}')
     print(template_dir)
     num_templates = len(glob.glob(f"{template_dir}/*.npy"))
     boxes, masks, templates = [], [], []
