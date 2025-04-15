@@ -308,7 +308,7 @@ if __name__ == "__main__":
 
     print("=> visualizating ...")
     save_path = os.path.join(f"{cfg.output_dir}/sam6d_results", 'vis_pem.png')
-    valid_masks = pose_scores == pose_scores.max()
+    valid_masks = pose_scores <= pose_scores.max()
     K = input_data['K'].detach().cpu().numpy()[valid_masks]
     vis_img = visualize(img, pred_rot[valid_masks], pred_trans[valid_masks], model_points*1000, K, save_path)
     vis_img.save(save_path)
