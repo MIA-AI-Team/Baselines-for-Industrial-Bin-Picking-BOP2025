@@ -94,7 +94,7 @@ class FastSAM(object):
         #     selected_device=device,
         #     segmentor_width_size=segmentor_width_size,
         # )
-        self.model = ultralytics.FastSAM("mobile_sam.pt")
+        self.model = ultralytics.FastSAM("FastSAM-s.pt")
 
         self.segmentor_width_size = segmentor_width_size
         self.current_device = device
