@@ -78,7 +78,7 @@ def init():
     cfg.cam_path = args.cam_path
     cfg.seg_path = args.seg_path
 
-    cfg.det_score_thresh = args.det_score_thresh
+    cfg.det_score_thresh = float(args.det_score_thresh)
     gorilla.utils.set_cuda_visible_devices(gpu_ids = cfg.gpus)
 
     return  cfg
