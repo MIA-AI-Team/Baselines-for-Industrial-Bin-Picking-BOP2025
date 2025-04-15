@@ -171,7 +171,7 @@ def get_test_data(rgb_path, depth_path, cam_path, cad_path, seg_path, det_score_
             dets.append(det)
     del dets_
 
-    cam_info = json.load(open(cam_path))
+    cam_info = json.load(open(cam_path))["0"]
     K = np.array(cam_info['cam_K']).reshape(3, 3)
 
     whole_image = load_im(rgb_path).astype(np.uint8)
