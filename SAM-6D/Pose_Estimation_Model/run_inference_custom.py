@@ -270,7 +270,7 @@ if __name__ == "__main__":
     gorilla.solver.load_checkpoint(model=model, filename=checkpoint)
 
     print("=> extracting templates ...")
-    tem_path = os.path.join(cfg.output_dir, 'templates')
+    tem_path = os.path.join(cfg.output_dir, 'templates/obj_000014')
     all_tem, all_tem_pts, all_tem_choose = get_templates(tem_path, cfg.test_dataset)
     with torch.no_grad():
         all_tem_pts, all_tem_feat = model.feature_extraction.get_obj_feats(all_tem, all_tem_pts, all_tem_choose)
