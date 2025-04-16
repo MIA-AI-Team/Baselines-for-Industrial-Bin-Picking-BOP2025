@@ -13,6 +13,9 @@ import cv2
 import trimesh
 import pycocotools.mask as cocomask
 
+from Instance_Segmentation_Model.run_inference_ import (run_segmentation)
+
+
 # Path setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.join(BASE_DIR, '..', 'Pose_Estimation_Model')
@@ -165,7 +168,7 @@ class PoseEstimator:
             if det['score'] > self.cfg.det_score_thresh:
                 dets.append(det)
 
-        CONST_DEPTH_SCALE = 0.001
+        CONST_DEPTH_SCALE = 0.1
         depth_scale = np.array([CONST_DEPTH_SCALE])
 
         # Use Camera class attributes - need to handle color vs rgb naming
@@ -324,7 +327,7 @@ class PoseEstimator:
 
 # Main function to integrate both segmentation and pose estimation
 def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None, 
-                      segmentor_model="sam", stability_score_thresh=0.97, 
+                      segmentor_model="fastsam", stability_score_thresh=0.97, 
                       det_score_thresh=0.37):
     """
     Complete SAM-6D pipeline that runs segmentation followed by pose estimation.
@@ -350,7 +353,6 @@ def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None,
     os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
     
     # Step 1: Run instance segmentation
-    from InstanceSegemenationModel.run_inference_ import run_segmentation
     
     print("=> Running instance segmentation...")
     detections = run_segmentation(
