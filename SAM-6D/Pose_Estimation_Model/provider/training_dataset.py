@@ -121,58 +121,67 @@ class Dataset():
         return np.random.choice(pool)
 
     def read_data(self, index):
+        print(f"Starting read_data with index {index}")
+        
         path_head = self.dataset_paths[index]
-        if not self._check_path(os.path.join(self.data_dir, path_head)): # TODO
+        print(f"Path head: {path_head}")
+        
+        if not self._check_path(os.path.join(self.data_dir, path_head)):
+            print("Path check failed")
             return None
 
-        # gt_info
-        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_info_cam1.json'), 'rb')) # TODO
+        # gt_info loading
+        print("Loading gt_info...")
+        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_info_cam1.json'), 'rb'))
         valid_idx = []
         for k, item in enumerate(gt_info):
             if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
                 valid_idx.append(k)
+        
+        print(f"Found {len(valid_idx)} valid instances")
         if len(valid_idx) == 0:
+            print("No valid instances found")
             return None
+            
         num_instance = len(valid_idx)
         valid_idx = valid_idx[np.random.randint(0, num_instance)]
         gt_info = gt_info[valid_idx]
-        # bbox = gt_info['bbox_visib']
-        # x1, y1, x2, y2 = bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]
 
-        # gt
-        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_cam1.json'), 'rb'))[valid_idx] # TODO
+        # gt loading
+        print("Loading gt...")
+        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_cam1.json'), 'rb'))[valid_idx]
+        
+        print(f"Processing object ID: {gt['obj_id']}")
         obj_id = gt['obj_id']
         target_R = np.array(gt['cam_R_m2c']).reshape(3,3).astype(np.float32)
         target_t = np.array(gt['cam_t_m2c']).reshape(3).astype(np.float32) / 1000.0
 
-        # camera
-        camera = json.load(open(os.path.join(self.data_dir, path_head+'scene_camera_cam1.json.json'), 'rb')) # TODO
+        # camera loading
+        print("Loading camera parameters...")
+        camera = json.load(open(os.path.join(self.data_dir, path_head+'scene_camera_cam1.json.json'), 'rb'))
         K = np.array(camera['cam_K']).reshape(3,3)
 
-
-        # template
+        # template loading
+        print("Loading template...")
         tem1_rgb, tem1_choose, tem1_pts = self._get_template(obj_id, 0)
         if tem1_rgb is None:
+            print("Template loading failed")
             return None
 
-
-        # mask
-        mask = io_load_masks(open(os.path.join(self.data_dir, path_head+'.mask_visib.json'), 'rb'))[valid_idx] # TODO
+        # mask loading
+        print("Loading and processing mask...")
+        mask = io_load_masks(open(os.path.join(self.data_dir, path_head+'.mask_visib.json'), 'rb'))[valid_idx]
         if np.sum(mask) == 0:
+            print("Empty mask")
             return None
-        if self.dilate_mask and np.random.rand() < 0.5:
-            mask = np.array(mask>0).astype(np.uint8)
-            mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_CROSS, (3,3)), iterations=4)
 
-        bbox = get_bbox(mask>0)
-        y1,y2,x1,x2 = bbox
-        mask = mask[y1:y2, x1:x2]
-        choose = mask.astype(np.float32).flatten().nonzero()[0]
-
-        # depth
-        depth = load_im(os.path.join(self.data_dir, path_head+'.depth.png')).astype(np.float32) # TODO
+        print("Processing depth...")
+        depth = load_im(os.path.join(self.data_dir, path_head+'.depth.png')).astype(np.float32)
         depth = depth * camera['depth_scale'] / 1000.0
+        
+        print("Processing points...")
         pts = get_point_cloud_from_depth(depth, K, [y1, y2, x1, x2])
+        print(f"Generated {pts.shape[0]} points")
         pts = pts.reshape(-1, 3)[choose, :]
 
         target_pts = (pts - target_t[None, :]) @ target_R
@@ -272,6 +281,7 @@ class Dataset():
         xyz = np.load(xyz_path).astype(np.float32)[y1:y2, x1:x2, :]
         xyz = xyz.reshape((-1, 3))[choose, :] * 0.1
         choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.img_size)
+        print("Processing complete, returning data")
 
         return rgb, choose, xyz
 
