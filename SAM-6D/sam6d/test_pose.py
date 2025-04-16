@@ -94,26 +94,6 @@ class StandalonePoseEstimator:
         cams = [cam_1, cam_2, cam_3] # Use only the three required cams for BPC Capture
 
         for object_id in object_ids:
-            print(f"\nProcessing object_id: {object_id}")
-            # def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None, 
-            #           segmentor_model="fastsam", stability_score_thresh=0.97, 
-            #           det_score_thresh=0.37):
-    # """
-    # Complete SAM-6D pipeline that runs segmentation followed by pose estimation.
-    
-    # Args:
-    #     camera: Camera object with color, depth and intrinsics
-    #     template_dir: Directory containing template images
-    #     ply_obj_path: Path to the object 3D model
-    #     output_dir: Directory to save results (default: directory of ply_obj_path)
-    #     segmentor_model: Segmentation model type ("sam" or "fastsam")
-    #     stability_score_thresh: Stability score threshold for segmentation
-    #     det_score_thresh: Detection score threshold for pose estimation
-        
-    # Returns:
-    #     detections: Final detections with pose estimation results
-    #     vis_img: Visualization of the pose estimation results
-    # """
             print(f"Running SAM-6D pipeline for object_id: {object_id}")
             # template dir is dataset_dir/templates/obj_000000 where 000000 is the object_id
             template_dir = os.path.join(DATASET_DIR, "templates", f"obj_{object_id:06d}")
@@ -172,72 +152,7 @@ class StandalonePoseEstimator:
             #     traceback.print_exc()
 
         return pose_estimates_results
-    # def get_pose_estimates(
-    #     self,
-    #     object_ids: List[int], # Keep signature, but not used
-    #     cam_1: Camera,
-    #     cam_2: Camera,
-    #     cam_3: Camera,
-    #     photoneo: Optional[Camera] = None,
-    # ) -> List[Dict[str, Any]]: # Return empty list to match signature
-    #     """
-    #     VERIFICATION FUNCTION: Prints parameters and displays images for input cameras.
-    #     Does NOT perform pose estimation.
-    #     """
-    #     print("\n--- Inside get_pose_estimates (Verification Mode) ---")
-    #     print(f"Object IDs received: {object_ids} (Not used in verification)")
 
-    #     cams_to_verify = {"cam_1": cam_1, "cam_2": cam_2, "cam_3": cam_3}
-    #     if photoneo:
-    #         cams_to_verify["photoneo"] = photoneo
-
-    #     valid_cams_count = sum(1 for cam in cams_to_verify.values() if cam is not None)
-    #     if valid_cams_count == 0:
-    #         print("No valid camera objects received. Cannot verify.")
-    #         return []
-
-    #     plt.figure(figsize=(15, 5 * ((valid_cams_count + 1) // 2))) # Adjust figure size
-    #     plot_index = 1
-
-    #     for name, cam in cams_to_verify.items():
-    #         print(f"\n--- Verifying Data for: {name} ---")
-    #         if cam is None:
-    #             print("  Camera object is None. Skipping.")
-    #             continue
-
-    #         # Print parameters stored in the Camera object
-    #         print(f"  Camera Name: {cam.name}") # Should match the key 'name'
-    #         print("  Intrinsics (K):")
-    #         with np.printoptions(precision=3, suppress=True):
-    #             print(f"  {cam.intrinsics}")
-    #         print("\n  Pose Matrix (World-to-Camera):")
-    #         with np.printoptions(precision=3, suppress=True):
-    #             print(f"  {cam.pose}")
-
-    #         # Display the image
-    #         if cam.rgb is not None:
-    #             print(f"\n  Displaying RGB Image (shape: {cam.rgb.shape})...")
-    #             try:
-    #                 # Convert BGR (from cv2) to RGB (for matplotlib)
-    #                 rgb_img_rgb = cv2.cvtColor(cam.rgb, cv2.COLOR_BGR2RGB)
-    #                 plt.subplot((valid_cams_count + 1) // 2, 2, plot_index)
-    #                 plt.imshow(rgb_img_rgb)
-    #                 plt.title(f"Input: {name} ({cam.name})")
-    #                 plt.axis('off')
-    #                 plot_index += 1
-    #             except Exception as e:
-    #                 print(f"  Error displaying image for {name}: {e}")
-    #         else:
-    #             print("  RGB Image data is None. Cannot display.")
-
-    #     if plot_index > 1:
-    #         plt.tight_layout()
-    #         plt.show()
-    #     else:
-    #         print("\nNo images were available to display from the input cameras.")
-
-    #     print("\n--- Exiting get_pose_estimates (Verification Mode) ---")
-    #     return [] # Return empty list as no poses were estimated
 
 
 def load_camera_params(scene_dir: str) -> Dict[str, Dict[str, List[Optional[np.ndarray]]]]:
@@ -288,12 +203,12 @@ def load_camera_params(scene_dir: str) -> Dict[str, Dict[str, List[Optional[np.n
                 if current_len < num_images_total: current_list.extend([None]*(num_images_total - current_len))
     return restructured_params
 
-def load_images(scene_dir: str, cam_names: List[str], image_id_str: str) -> Dict[str, Optional[np.ndarray]]:
+def load_images(scene_dir: str, cam_names: List[str], image_id_str: str, img_folder_prefix="rgb") -> Dict[str, Optional[np.ndarray]]:
     """Loads RGB images for the given camera names and image ID. Returns None if loading fails."""
     images = {}
     print(f"\nLoading images for image ID: {image_id_str}")
     for cam_name in cam_names:
-        folder_name = f"rgb_{cam_name}"
+        folder_name = f"{img_folder_prefix}_{cam_name}"
         search_pattern = os.path.join(scene_dir, folder_name, f"{image_id_str}.*")
         image_paths = glob.glob(search_pattern)
         img = None # Default to None
@@ -342,14 +257,16 @@ if __name__ == "__main__":
             print(f"Discovered cameras: {discovered_cam_names}")
 
             # --- Step 5: Load Images for the SPECIFIC image_id ---
-            images = load_images(scene_dir, discovered_cam_names, image_id_str)
+            rgb_images = load_images(scene_dir, discovered_cam_names, image_id_str, "rgb")
+            depth_images = load_images(scene_dir, discovered_cam_names, image_id_str, "depth")
 
             # --- Step 6: Create Camera Objects ---
             print("\nCreating Camera objects...")
             cameras = {}
             for cam_name in discovered_cam_names:
                 print(f"  Processing camera: {cam_name}")
-                rgb_img = images.get(cam_name) # Get image array or None
+                rgb_img = rgb_images.get(cam_name) # Get image array or None
+                depth_img = depth_images.get(cam_name) # Get depth array or None
                 if cam_name not in all_cam_params or not all_cam_params[cam_name]['K']:
                     print(f"    - Parameters not loaded. Skipping object creation.")
                     continue
@@ -364,7 +281,7 @@ if __name__ == "__main__":
                     if K is None or R is None or t is None: raise ValueError("Params are None")
                     RT = calc_pose_matrix(R, t)
                     # Create Camera object, passing rgb_img (which might be None)
-                    cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img)
+                    cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img, depth=depth_img)
                     print(f"    + Successfully created Camera object for {cam_name} (Image loaded: {'Yes' if rgb_img is not None else 'No'})")
                 except (IndexError, ValueError, KeyError) as e:
                     print(f"    - Error accessing/processing parameters for {cam_name} at index {IMAGE_ID}: {e}. Skipping object creation.")
