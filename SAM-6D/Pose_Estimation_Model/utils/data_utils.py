@@ -29,8 +29,11 @@ def io_load_gt(
     :return: List of ground truth annotations (one dict per object instance).
     """
     gt = json.load(gt_file)
+    print(type(gt))
     if instance_ids is not None:
         gt = [gt_n for n, gt_n in enumerate(gt) if n in instance_ids]
+    print(type(gt))
+
     gt = [_gt_as_numpy(gt_n) for gt_n in gt]
     return gt
 
