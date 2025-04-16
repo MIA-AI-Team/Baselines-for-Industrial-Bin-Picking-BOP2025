@@ -48,7 +48,7 @@ def batch_input_data(camera, device):
     return batch
 
 
-def run_segmentation(camera, template_dir, ply_obj_path, segmentor_model, stability_score_thresh = 0.97):
+def run_segmentation(camera, template_dir, ply_obj_path, segmentor_model, output_dir=None, stability_score_thresh = 0.97):
     with initialize(version_base=None, config_path="configs"):
         cfg = compose(config_name='run_inference.yaml')
 
@@ -156,13 +156,13 @@ def run_segmentation(camera, template_dir, ply_obj_path, segmentor_model, stabil
 
     detections.add_attribute("scores", final_score)
     detections.add_attribute("object_ids", torch.zeros_like(final_score))   
-
-    output_dir = os.path.dirname(ply_obj_path)
     detections.to_numpy()
-    save_path = f"{output_dir}/sam6d_results/detection_ism"
-    detections.save_to_file(0, 0, 0, save_path, "Custom", return_results=False)
-    # Detections is the json format file data
-    detections = convert_npz_to_json(idx=0, list_npz_paths=[save_path+".npz"])
+    if output_dir:
+        save_path = f"{output_dir}/sam6d_results/detection_ism"
+        os.makedirs(save_path, exist_ok=True)
+        detections.save_to_file(0, 0, 0, save_path, "Custom", return_results=False)
+        # Detections is the json format file data
+        detections = convert_npz_to_json(idx=0, list_npz_paths=[save_path+".npz"])
     return detections
 
 

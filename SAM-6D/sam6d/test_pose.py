@@ -248,109 +248,109 @@ if __name__ == "__main__":
     if not os.path.isdir(scene_dir):
         print(f"\nError: Scene directory not found: {scene_dir}")
     else:
-        try:
-            # --- Step 4: Discover cameras and load parameters ---
-            print("\nDiscovering cameras and loading parameters...")
-            all_cam_params = load_camera_params(scene_dir)
-            discovered_cam_names = sorted(list(all_cam_params.keys()))
-            if not discovered_cam_names: raise FileNotFoundError(f"No camera param files found in {scene_dir}.")
-            print(f"Discovered cameras: {discovered_cam_names}")
+        # try:
+        # --- Step 4: Discover cameras and load parameters ---
+        print("\nDiscovering cameras and loading parameters...")
+        all_cam_params = load_camera_params(scene_dir)
+        discovered_cam_names = sorted(list(all_cam_params.keys()))
+        if not discovered_cam_names: raise FileNotFoundError(f"No camera param files found in {scene_dir}.")
+        print(f"Discovered cameras: {discovered_cam_names}")
 
-            # --- Step 5: Load Images for the SPECIFIC image_id ---
-            rgb_images = load_images(scene_dir, discovered_cam_names, image_id_str, "rgb")
-            depth_images = load_images(scene_dir, discovered_cam_names, image_id_str, "depth")
+        # --- Step 5: Load Images for the SPECIFIC image_id ---
+        rgb_images = load_images(scene_dir, discovered_cam_names, image_id_str, "rgb")
+        depth_images = load_images(scene_dir, discovered_cam_names, image_id_str, "depth")
 
-            # --- Step 6: Create Camera Objects ---
-            print("\nCreating Camera objects...")
-            cameras = {}
-            for cam_name in discovered_cam_names:
-                print(f"  Processing camera: {cam_name}")
-                rgb_img = rgb_images.get(cam_name) # Get image array or None
-                depth_img = depth_images.get(cam_name) # Get depth array or None
-                if cam_name not in all_cam_params or not all_cam_params[cam_name]['K']:
-                    print(f"    - Parameters not loaded. Skipping object creation.")
-                    continue
-                # Allow Camera object creation even if image failed to load (rgb_img is None)
-                # But parameters must exist for this IMAGE_ID
+        # --- Step 6: Create Camera Objects ---
+        print("\nCreating Camera objects...")
+        cameras = {}
+        for cam_name in discovered_cam_names:
+            print(f"  Processing camera: {cam_name}")
+            rgb_img = rgb_images.get(cam_name) # Get image array or None
+            depth_img = depth_images.get(cam_name) # Get depth array or None
+            if cam_name not in all_cam_params or not all_cam_params[cam_name]['K']:
+                print(f"    - Parameters not loaded. Skipping object creation.")
+                continue
+            # Allow Camera object creation even if image failed to load (rgb_img is None)
+            # But parameters must exist for this IMAGE_ID
 
-                try:
-                    if IMAGE_ID >= len(all_cam_params[cam_name]['K']): raise IndexError("Index out of bounds")
-                    K = all_cam_params[cam_name]['K'][IMAGE_ID]
-                    R = all_cam_params[cam_name]['R'][IMAGE_ID]
-                    t = all_cam_params[cam_name]['t'][IMAGE_ID]
-                    if K is None or R is None or t is None: raise ValueError("Params are None")
-                    RT = calc_pose_matrix(R, t)
-                    # Create Camera object, passing rgb_img (which might be None)
-                    cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img, depth=depth_img)
-                    print(f"    + Successfully created Camera object for {cam_name} (Image loaded: {'Yes' if rgb_img is not None else 'No'})")
-                except (IndexError, ValueError, KeyError) as e:
-                    print(f"    - Error accessing/processing parameters for {cam_name} at index {IMAGE_ID}: {e}. Skipping object creation.")
-                except Exception as e:
-                    print(f"    - Unexpected error creating Camera object for {cam_name}: {e}. Skipping.")
+            try:
+                if IMAGE_ID >= len(all_cam_params[cam_name]['K']): raise IndexError("Index out of bounds")
+                K = all_cam_params[cam_name]['K'][IMAGE_ID]
+                R = all_cam_params[cam_name]['R'][IMAGE_ID]
+                t = all_cam_params[cam_name]['t'][IMAGE_ID]
+                if K is None or R is None or t is None: raise ValueError("Params are None")
+                RT = calc_pose_matrix(R, t)
+                # Create Camera object, passing rgb_img (which might be None)
+                cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img, depth=depth_img)
+                print(f"    + Successfully created Camera object for {cam_name} (Image loaded: {'Yes' if rgb_img is not None else 'No'})")
+            except (IndexError, ValueError, KeyError) as e:
+                print(f"    - Error accessing/processing parameters for {cam_name} at index {IMAGE_ID}: {e}. Skipping object creation.")
+            except Exception as e:
+                print(f"    - Unexpected error creating Camera object for {cam_name}: {e}. Skipping.")
 
 
-            # --- Step 7: Check for required cameras and get objects ---
-            print("\nChecking for required cameras (cam1, cam2, cam3)...")
-            cam_1 = cameras.get("cam1")
-            cam_2 = cameras.get("cam2")
-            cam_3 = cameras.get("cam3")
-            photoneo_cam = cameras.get("photoneo")
+        # --- Step 7: Check for required cameras and get objects ---
+        print("\nChecking for required cameras (cam1, cam2, cam3)...")
+        cam_1 = cameras.get("cam1")
+        cam_2 = cameras.get("cam2")
+        cam_3 = cameras.get("cam3")
+        photoneo_cam = cameras.get("photoneo")
 
-            required_cams_found = True
-            if not cam_1: print("  - Warning: Camera object 'cam1' not created."); required_cams_found = False
-            if not cam_2: print("  - Warning: Camera object 'cam2' not created."); required_cams_found = False
-            if not cam_3: print("  - Warning: Camera object 'cam3' not created."); required_cams_found = False
+        required_cams_found = True
+        if not cam_1: print("  - Warning: Camera object 'cam1' not created."); required_cams_found = False
+        if not cam_2: print("  - Warning: Camera object 'cam2' not created."); required_cams_found = False
+        if not cam_3: print("  - Warning: Camera object 'cam3' not created."); required_cams_found = False
 
-            if not required_cams_found:
-                print("\nOne or more required cameras (cam1, cam2, cam3) failed object creation. Cannot call get_pose_estimates.")
+        if not required_cams_found:
+            print("\nOne or more required cameras (cam1, cam2, cam3) failed object creation. Cannot call get_pose_estimates.")
+        else:
+            print("  + Required camera objects (cam1, cam2, cam3) created. Proceeding.")
+            print(f"  Photoneo camera object created: {'Yes' if photoneo_cam else 'No'}")
+
+            # --- Step 8: Initialize "Estimator" (Verification Mode) ---
+            estimator = StandalonePoseEstimator() # No args needed
+
+            # --- Step 9: Call get_pose_estimates for Verification ---
+            print("\n--- Calling get_pose_estimates ---")
+            # This will now print params and show images internally
+            pose_estimates = estimator.get_pose_estimates(
+                object_ids=OBJECT_IDS_TO_TEST,
+                cam_1=cam_1,
+                cam_2=cam_2,
+                cam_3=cam_3,
+                photoneo=photoneo_cam
+            )
+            print("\n--- Pose Estimation Results ---")
+            if not pose_estimates:
+                print("No poses estimated.")
             else:
-                print("  + Required camera objects (cam1, cam2, cam3) created. Proceeding.")
-                print(f"  Photoneo camera object created: {'Yes' if photoneo_cam else 'No'}")
-
-                # --- Step 8: Initialize "Estimator" (Verification Mode) ---
-                estimator = StandalonePoseEstimator() # No args needed
-
-                # --- Step 9: Call get_pose_estimates for Verification ---
-                print("\n--- Calling get_pose_estimates ---")
-                # This will now print params and show images internally
-                pose_estimates = estimator.get_pose_estimates(
-                    object_ids=OBJECT_IDS_TO_TEST,
-                    cam_1=cam_1,
-                    cam_2=cam_2,
-                    cam_3=cam_3,
-                    photoneo=photoneo_cam
-                )
-                print("\n--- Pose Estimation Results ---")
-                if not pose_estimates:
-                    print("No poses estimated.")
-                else:
-                    for estimate in pose_estimates:
-                        print(f"Object ID: {estimate['obj_id']}")
-                        print(f"  Score: {estimate['score']:.4f}")
-                        pose_mat = estimate['pose']
-                        with np.printoptions(precision=3, suppress=True):
-                            print(f"  Pose (4x4 Matrix):\n{pose_mat}")
-                        try:
-                            quat = rot_to_quat(pose_mat[:3, :3])
-                            print(f"  Orientation (Quat xyzw): [{quat[0]:.3f}, {quat[1]:.3f}, {quat[2]:.3f}, {quat[3]:.3f}]")
-                            pos = pose_mat[:3, 3]
-                            print(f"  Position (xyz): [{pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f}]")
-                        except Exception as e:
-                            print(f"  Could not extract quat/pos from pose matrix: {e}")
-                        print("-" * 20)
+                for estimate in pose_estimates:
+                    print(f"Object ID: {estimate['obj_id']}")
+                    print(f"  Score: {estimate['score']:.4f}")
+                    pose_mat = estimate['pose']
+                    with np.printoptions(precision=3, suppress=True):
+                        print(f"  Pose (4x4 Matrix):\n{pose_mat}")
+                    try:
+                        quat = rot_to_quat(pose_mat[:3, :3])
+                        print(f"  Orientation (Quat xyzw): [{quat[0]:.3f}, {quat[1]:.3f}, {quat[2]:.3f}, {quat[3]:.3f}]")
+                        pos = pose_mat[:3, 3]
+                        print(f"  Position (xyz): [{pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f}]")
+                    except Exception as e:
+                        print(f"  Could not extract quat/pos from pose matrix: {e}")
+                    print("-" * 20)
 
 
-        except FileNotFoundError as e:
-            print(f"\nError: A required file or directory was not found.")
-            print(e)
-        except (ValueError, IndexError, json.JSONDecodeError) as e:
-            print(f"\nError processing data:")
-            print(e)
-        except ImportError as e:
-            print(f"\nImport Error: {e}")
-        except Exception as e:
-            print(f"\nAn unexpected error occurred: {e}")
-            import traceback
-            traceback.print_exc()
+        # except FileNotFoundError as e:
+        #     print(f"\nError: A required file or directory was not found.")
+        #     print(e)
+        # except (ValueError, IndexError, json.JSONDecodeError) as e:
+        #     print(f"\nError processing data:")
+        #     print(e)
+        # except ImportError as e:
+        #     print(f"\nImport Error: {e}")
+        # except Exception as e:
+        #     print(f"\nAn unexpected error occurred: {e}")
+        #     import traceback
+        #     traceback.print_exc()
 
         print("\n--- Test Script Finished ---")

@@ -357,7 +357,7 @@ def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None,
     print("=> Running instance segmentation...")
     detections = run_segmentation(
         camera, template_dir, ply_obj_path, 
-        segmentor_model, stability_score_thresh
+        segmentor_model, output_dir, stability_score_thresh, 
     )
     
     # Step 2: Initialize pose estimator
