@@ -1,3 +1,1 @@
-from seg_interface import (
-    run_segmentation
-)
+from pose_interface import run_sam6d_pipeline
