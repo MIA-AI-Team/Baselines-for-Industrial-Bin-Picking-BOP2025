@@ -270,7 +270,12 @@ if __name__ == "__main__":
     gorilla.solver.load_checkpoint(model=model, filename=checkpoint)
 
     print("=> extracting templates ...")
-    tem_path = os.path.join(cfg.output_dir, 'templates/obj_000014')
+    #tem_path = os.path.join(cfg.output_dir, 'templates/obj_000014')
+    logging.info("Initializing template")
+    cad_filename = os.path.basename(cfg.cad_path)
+    object_name = os.path.splitext(cad_filename)[0]
+
+    tem_path = os.path.join('/content/drive/MyDrive/bpc_opencv_dataset/ipd/', f'templates/{object_name}')
     all_tem, all_tem_pts, all_tem_choose = get_templates(tem_path, cfg.test_dataset)
     with torch.no_grad():
         all_tem_pts, all_tem_feat = model.feature_extraction.get_obj_feats(all_tem, all_tem_pts, all_tem_choose)
