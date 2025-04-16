@@ -136,7 +136,7 @@ def batch_input_data(depth_path, cam_path, device):
     return batch
 
 # def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, cam_path, stability_score_thresh):
-def run_inference(model, output_dir, input_dir, template_folder, cad_folder):
+def run_inference(model, output_dir, input_dir, template_folder='//content/drive/MyDrive/bpc_opencv_dataset/ipd/templates', cad_folder):
     logging.info("Initializing template")
     
     test_targets_path = '/content/drive/MyDrive/bpc_opencv_dataset/ipd/test_targets_bop19.json' 
