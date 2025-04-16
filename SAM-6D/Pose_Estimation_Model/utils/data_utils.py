@@ -63,6 +63,7 @@ def io_load_masks(
 
 
 def _gt_as_numpy(gt):
+    print(type(gt))
     if 'cam_R_m2c' in gt.keys():
         gt['cam_R_m2c'] = \
         np.array(gt['cam_R_m2c'], np.float64).reshape((3, 3))
