@@ -1,13 +1,13 @@
 import numpy as np
 # import open3d as o3d
 import os
-from utils.poses.pose_utils import (
+from Instance_Segmentation_Model.utils.poses.pose_utils import (
     get_obj_poses_from_template_level,
     get_root_project,
     NearestTemplateFinder,
 )
 import os.path as osp
-# from utils.vis_3d_utils import convert_numpy_to_open3d, draw_camera
+# from Instance_Segmentation_Model.utils.vis_3d_utils import convert_numpy_to_open3d, draw_camera
 
 if __name__ == "__main__":
     for template_level in range(2):

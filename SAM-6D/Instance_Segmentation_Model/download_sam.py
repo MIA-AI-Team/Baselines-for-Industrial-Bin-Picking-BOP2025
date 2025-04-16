@@ -2,7 +2,7 @@ import os
 import logging
 import os, sys
 import os.path as osp
-from utils.inout import get_root_project
+from Instance_Segmentation_Model.utils.inout import get_root_project
 
 # set level logging
 logging.basicConfig(level=logging.INFO)

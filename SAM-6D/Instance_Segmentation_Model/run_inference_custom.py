@@ -27,11 +27,11 @@ from skimage.feature import canny
 from skimage.morphology import binary_dilation
 from segment_anything.utils.amg import rle_to_mask
 
-from utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
-from utils.bbox_utils import CropResizePad
+from Instance_Segmentation_Model.utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
+from Instance_Segmentation_Model.utils.bbox_utils import CropResizePad
 from model.utils import Detections, convert_npz_to_json
 from model.loss import Similarity
-from utils.inout import load_json, save_json_bop23
+from Instance_Segmentation_Model.utils.inout import load_json, save_json_bop23
 
 inv_rgb_transform = T.Compose(
         [

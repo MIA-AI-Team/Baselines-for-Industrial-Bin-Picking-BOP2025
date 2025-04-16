@@ -9,8 +9,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 import os.path as osp
 import pandas as pd
-from utils.inout import load_json, save_json, casting_format_to_save_json
-from utils.poses.pose_utils import (
+from Instance_Segmentation_Model.utils.inout import load_json, save_json, casting_format_to_save_json
+from Instance_Segmentation_Model.utils.poses.pose_utils import (
     load_index_level_in_level2,
     get_obj_poses_from_template_level,
     NearestTemplateFinder,
@@ -18,7 +18,7 @@ from utils.poses.pose_utils import (
     combine_R_and_T,
 )
 import torch
-from utils.bbox_utils import CropResizePad
+from Instance_Segmentation_Model.utils.bbox_utils import CropResizePad
 import pytorch_lightning as pl
 from functools import partial
 import multiprocessing

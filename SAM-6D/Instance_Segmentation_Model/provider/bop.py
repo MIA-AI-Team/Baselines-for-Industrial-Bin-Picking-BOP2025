@@ -8,13 +8,13 @@ from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
 import os.path as osp
-from utils.poses.pose_utils import load_index_level_in_level2
+from Instance_Segmentation_Model.utils.poses.pose_utils import load_index_level_in_level2
 import torch
-from utils.bbox_utils import CropResizePad
+from Instance_Segmentation_Model.utils.bbox_utils import CropResizePad
 import pytorch_lightning as pl
 from provider.base_bop import BaseBOP
 import imageio.v2 as imageio
-from utils.inout import load_json
+from Instance_Segmentation_Model.utils.inout import load_json
 
 pl.seed_everything(2023)
 
