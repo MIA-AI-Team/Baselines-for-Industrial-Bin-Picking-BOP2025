@@ -69,6 +69,7 @@ class PoseEstimator:
         log_dir = osp.join("log", exp_name)
 
         cfg = gorilla.Config.fromfile(config_path)
+        print(cfg)
         cfg.exp_name = exp_name
         cfg.gpus = gpus
         cfg.model_name = model_name
