@@ -33,7 +33,8 @@ class Dataset():
     def __init__(self, cfg, num_img_per_epoch=-1):
         self.cfg = cfg
 
-        self.data_dir = cfg.data_dir
+        #self.data_dir = cfg.data_dir
+        self.data_dir='/content/drive/MyDrive/bpc_opencv_dataset/ipd/'
         self.num_img_per_epoch = num_img_per_epoch
         self.min_visib_px = cfg.min_px_count_visib
         self.min_visib_frac = cfg.min_visib_fract
@@ -44,38 +45,28 @@ class Dataset():
         self.n_sample_observed_point = cfg.n_sample_observed_point
         self.n_sample_model_point = cfg.n_sample_model_point
         self.n_sample_template_point = cfg.n_sample_template_point
-
+        
 
         self.data_paths = [
-            os.path.join('MegaPose-GSO', 'train_pbr_web'),
-            os.path.join('MegaPose-ShapeNetCore', 'train_pbr_web')
+            os.path.join(self.data_dir, 'train_pbr')
         ]
         self.model_paths = [
-            os.path.join(self.data_dir, 'MegaPose-GSO', 'Google_Scanned_Objects'),
-            os.path.join(self.data_dir, 'MegaPose-ShapeNetCore', 'shapenetcorev2'),
+            os.path.join(self.data_dir, 'models')
         ]
         self.templates_paths = [
-            os.path.join(self.data_dir, 'MegaPose-GSO', 'templates'),
-            os.path.join(self.data_dir, 'MegaPose-ShapeNetCore', 'templates'),
+            os.path.join(self.data_dir, 'templates')
         ]
 
         self.dataset_paths = []
         for f in self.data_paths:
-            with open(os.path.join(self.data_dir, f, 'key_to_shard.json')) as fr:
-                key_shards = json.load(fr)
-
-                for k in key_shards.keys():
-                    path_name = os.path.join(f, "shard-" + f"{key_shards[k]:06d}", k)
-                    self.dataset_paths.append(path_name)
+            self.dataset_paths.append(os.path.join(self.data_dir, 'train_pbr', "000049")) # TODO, testing for only one scene
 
         self.length = len(self.dataset_paths)
         print('Total {} images .....'.format(self.length))
 
 
-        with open(os.path.join(self.data_dir, self.data_paths[0], 'gso_models.json')) as fr:
+        with open(os.path.join(self.data_dir, 'models/models_info.json')) as fr:
             self.model_info = [json.load(fr)]
-        with open(os.path.join(self.data_dir, self.data_paths[1], 'shapenet_models.json')) as fr:
-            self.model_info.append(json.load(fr))
 
         # gdrnpp aug 
         aug_code = (
@@ -131,12 +122,11 @@ class Dataset():
 
     def read_data(self, index):
         path_head = self.dataset_paths[index]
-        dataset_type = path_head.split('/')[0][9:]
-        if not self._check_path(os.path.join(self.data_dir, path_head)):
+        if not self._check_path(os.path.join(self.data_dir, path_head)): # TODO
             return None
 
         # gt_info
-        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'.gt_info.json'), 'rb'))
+        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_info_cam1.json'), 'rb')) # TODO
         valid_idx = []
         for k, item in enumerate(gt_info):
             if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
@@ -150,25 +140,24 @@ class Dataset():
         # x1, y1, x2, y2 = bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]
 
         # gt
-        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'.gt.json'), 'rb'))[valid_idx]
+        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_cam1.json'), 'rb'))[valid_idx] # TODO
         obj_id = gt['obj_id']
         target_R = np.array(gt['cam_R_m2c']).reshape(3,3).astype(np.float32)
         target_t = np.array(gt['cam_t_m2c']).reshape(3).astype(np.float32) / 1000.0
 
         # camera
-        camera = json.load(open(os.path.join(self.data_dir, path_head+'.camera.json'), 'rb'))
+        camera = json.load(open(os.path.join(self.data_dir, path_head+'scene_camera_cam1.json.json'), 'rb')) # TODO
         K = np.array(camera['cam_K']).reshape(3,3)
 
 
         # template
-        tem1_rgb, tem1_choose, tem1_pts = self._get_template(dataset_type, obj_id, 0)
-        tem2_rgb, tem2_choose, tem2_pts = self._get_template(dataset_type, obj_id, 1)
+        tem1_rgb, tem1_choose, tem1_pts = self._get_template(obj_id, 0)
         if tem1_rgb is None:
             return None
 
 
         # mask
-        mask = io_load_masks(open(os.path.join(self.data_dir, path_head+'.mask_visib.json'), 'rb'))[valid_idx]
+        mask = io_load_masks(open(os.path.join(self.data_dir, path_head+'.mask_visib.json'), 'rb'))[valid_idx] # TODO
         if np.sum(mask) == 0:
             return None
         if self.dilate_mask and np.random.rand() < 0.5:
@@ -181,7 +170,7 @@ class Dataset():
         choose = mask.astype(np.float32).flatten().nonzero()[0]
 
         # depth
-        depth = load_im(os.path.join(self.data_dir, path_head+'.depth.png')).astype(np.float32)
+        depth = load_im(os.path.join(self.data_dir, path_head+'.depth.png')).astype(np.float32) # TODO
         depth = depth * camera['depth_scale'] / 1000.0
         pts = get_point_cloud_from_depth(depth, K, [y1, y2, x1, x2])
         pts = pts.reshape(-1, 3)[choose, :]
@@ -205,7 +194,7 @@ class Dataset():
         pts = pts[choose_idx]
 
         # rgb
-        rgb = load_im(os.path.join(self.data_dir, path_head+'.rgb.jpg')).astype(np.uint8)
+        rgb = load_im(os.path.join(self.data_dir, path_head+'.rgb.jpg')).astype(np.uint8) # TODO
         rgb = rgb[..., ::-1][y1:y2, x1:x2, :]
         if np.random.rand() < 0.8:
             rgb = self.color_augmentor.augment_image(rgb)
@@ -243,28 +232,18 @@ class Dataset():
         }
         return ret_dict
 
-    def _get_template(self, type, obj_id, tem_index=1):
-        if type == 'GSO':
-            info = self.model_info[0][obj_id]
-            assert info['obj_id'] == obj_id
-            file_base = os.path.join(
-                self.templates_paths[0],
-                info['gso_id'],
-            )
+    def _get_template(self, obj_id, tem_index=1):
+        info = self.model_info[0][obj_id]
+        assert info['obj_id'] == obj_id
+        file_base = os.path.join(
+            self.templates_paths[0],
+            f'obj_{obj_id}'
+        ) # TODO not sure
 
-        elif type == 'ShapeNetCore':
-            info = self.model_info[1][obj_id]
-            assert info['obj_id'] == obj_id
-            file_base = os.path.join(
-                self.templates_paths[1],
-                info['shapenet_synset_id'],
-                info['shapenet_source_id'],
-            )
-
-        rgb_path = os.path.join(file_base, 'rgb_'+str(tem_index)+'.png')
-        xyz_path = os.path.join(file_base, 'xyz_'+str(tem_index)+'.npy')
-        mask_path = os.path.join(file_base, 'mask_'+str(tem_index)+'.png')
-        if not os.path.exists(rgb_path):
+        rgb_path = os.path.join(file_base, 'rgb_'+str(tem_index)+'.png') # TODO
+        xyz_path = os.path.join(file_base, 'xyz_'+str(tem_index)+'.npy') # TODO
+        mask_path = os.path.join(file_base, 'mask_'+str(tem_index)+'.png') # TODO
+        if not os.path.exists(rgb_path): # TODO
             return None, None, None
 
         # mask
@@ -307,6 +286,6 @@ class Dataset():
         ]
 
         for k in keys:
-            if not os.path.exists(path_head + k):
+            if not os.path.exists(path_head + k): # TODO
                 return False
         return True
