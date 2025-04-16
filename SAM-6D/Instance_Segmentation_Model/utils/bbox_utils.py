@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import logging
-from segment_anything.utils.transforms import ResizeLongestSide
+from Instance_Segmentation_Model.utils.utils.transforms import ResizeLongestSide
 from torchvision.transforms.functional import resize, to_pil_image  # type: ignore
 from copy import deepcopy
 from typing import Tuple

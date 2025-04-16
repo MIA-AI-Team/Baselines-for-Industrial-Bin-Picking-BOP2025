@@ -25,7 +25,7 @@ import imageio
 import distinctipy
 from skimage.feature import canny
 from skimage.morphology import binary_dilation
-from segment_anything.utils.amg import rle_to_mask
+from Instance_Segmentation_Model.utils.utils.amg import rle_to_mask
 
 from Instance_Segmentation_Model.utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
 from Instance_Segmentation_Model.utils.bbox_utils import CropResizePad

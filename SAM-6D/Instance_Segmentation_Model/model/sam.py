@@ -1,10 +1,10 @@
-from segment_anything import (
+from Instance_Segmentation_Model.utils import (
     sam_model_registry,
     SamPredictor,
     SamAutomaticMaskGenerator,
 )
-from segment_anything.modeling import Sam
-from segment_anything.utils.amg import MaskData, generate_crop_boxes, rle_to_mask
+from Instance_Segmentation_Model.utils.modeling import Sam
+from Instance_Segmentation_Model.utils.utils.amg import MaskData, generate_crop_boxes, rle_to_mask
 import logging
 import numpy as np
 import torch
