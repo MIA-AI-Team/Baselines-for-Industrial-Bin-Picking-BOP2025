@@ -1,4 +1,4 @@
-from utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
+from Instance_Segmentation_Model.utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
 
 
 import torch
@@ -19,13 +19,13 @@ from torchvision.utils import save_image
 import torchvision.transforms as T
 from skimage.feature import canny
 from skimage.morphology import binary_dilation
-from segment_anything.utils.amg import rle_to_mask
+from Instance_Segmentation_Model.segment_anything.utils.amg import rle_to_mask
 
-from utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
-from utils.bbox_utils import CropResizePad
-from model.utils import Detections, convert_npz_to_json
-from model.loss import Similarity
-from utils.inout import load_json, save_json_bop23
+from Instance_Segmentation_Model.utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
+from Instance_Segmentation_Model.utils.bbox_utils import CropResizePad
+from Instance_Segmentation_Model.model.utils import Detections, convert_npz_to_json
+from Instance_Segmentation_Model.model.loss import Similarity
+from Instance_Segmentation_Model.utils.inout import load_json, save_json_bop23
 
 
 from typing import List, Optional, Union
@@ -34,19 +34,6 @@ import numpy as np
 
 import torch
 
-
-
-
-# Helper functions
-def ros_pose_to_mat(pose: PoseMsg):
-    r = Rotation.from_quat(
-        [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-    )
-    matrix = r.as_matrix()
-    pose_matrix = np.eye(4)
-    pose_matrix[:3, :3] = matrix
-    pose_matrix[:3, 3] = [pose.position.x, pose.position.y, pose.position.z]
-    return pose_matrix
 
 def batch_input_data(camera, device):
     batch = {}
