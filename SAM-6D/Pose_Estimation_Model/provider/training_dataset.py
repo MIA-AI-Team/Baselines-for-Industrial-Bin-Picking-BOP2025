@@ -132,7 +132,7 @@ class Dataset():
 
         # gt_info loading
         print("Loading gt_info...")
-        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_info_cam1.json'), 'rb'))
+        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
         valid_idx = []
         for k, item in enumerate(gt_info):
             if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
@@ -149,7 +149,7 @@ class Dataset():
 
         # gt loading
         print("Loading gt...")
-        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'scene_gt_cam1.json'), 'rb'))[valid_idx]
+        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_cam1.json'), 'rb'))[valid_idx]
         
         print(f"Processing object ID: {gt['obj_id']}")
         obj_id = gt['obj_id']
@@ -158,7 +158,7 @@ class Dataset():
 
         # camera loading
         print("Loading camera parameters...")
-        camera = json.load(open(os.path.join(self.data_dir, path_head+'scene_camera_cam1.json.json'), 'rb'))
+        camera = json.load(open(os.path.join(self.data_dir, path_head+'/scene_camera_cam1.json.json'), 'rb'))
         K = np.array(camera['cam_K']).reshape(3,3)
 
         # template loading
