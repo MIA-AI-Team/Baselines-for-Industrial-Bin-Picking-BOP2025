@@ -1,11 +1,3 @@
-from ibpc_interfaces.msg import Camera as CameraMsg
-from ibpc_interfaces.msg import Photoneo as PhotoneoMsg
-from ibpc_interfaces.msg import PoseEstimate as PoseEstimateMsg
-from ibpc_interfaces.srv import GetPoseEstimates
-
-from geometry_msgs.msg import Pose as PoseMsg
-from cv_bridge import CvBridge
-
 from utils.poses.pose_utils import get_obj_poses_from_template_level, load_index_level_in_level2
 
 
