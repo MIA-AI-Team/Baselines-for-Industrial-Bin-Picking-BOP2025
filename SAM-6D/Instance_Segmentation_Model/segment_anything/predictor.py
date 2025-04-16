@@ -7,7 +7,7 @@
 import numpy as np
 import torch
 
-from Instance_Segmentation_Model.utils.modeling import Sam
+from modeling import Sam
 
 from typing import Optional, Tuple
 
