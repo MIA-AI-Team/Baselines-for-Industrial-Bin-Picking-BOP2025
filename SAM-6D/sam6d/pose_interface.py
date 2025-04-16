@@ -76,6 +76,7 @@ class PoseEstimator:
         cfg.log_dir = log_dir
         cfg.test_iter = iter_val
         cfg.det_score_thresh = float(det_score_thresh)
+        self.cfg.rgb_mask_flag = True
         
         gorilla.utils.set_cuda_visible_devices(gpu_ids=cfg.gpus)
         return cfg
