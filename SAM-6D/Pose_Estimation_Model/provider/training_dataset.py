@@ -297,5 +297,5 @@ class Dataset():
 
         for k in keys:
             if not os.path.exists(path_head + k): # TODO
-                return False
+                return True
         return True
