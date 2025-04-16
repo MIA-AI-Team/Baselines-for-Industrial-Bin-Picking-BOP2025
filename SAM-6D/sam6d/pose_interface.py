@@ -25,13 +25,13 @@ sys.path.append(os.path.join(ROOT_DIR, 'model'))
 sys.path.append(os.path.join(BASE_DIR, 'model', 'pointnet2'))
 
 # Import utility functions
-from Pose_Estimation_Model.utils.data_utils import (
+from utils.data_utils import (
     load_im,
     get_bbox,
     get_point_cloud_from_depth,
     get_resize_rgb_choose,
 )
-from Pose_Estimation_Model.utils.draw_utils import draw_detections
+from utils.draw_utils import draw_detections
 
 # Transformations for RGB images
 rgb_transform = transforms.Compose([
