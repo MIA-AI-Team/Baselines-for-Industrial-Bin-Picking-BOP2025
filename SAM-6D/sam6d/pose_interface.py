@@ -142,7 +142,7 @@ class PoseEstimator:
     def get_templates(self, template_dir):
         """Extract templates from the template directory."""
         print("=> Extracting templates...")
-        n_template_view = self.cfg.n_template_view
+        n_template_view = 42
         all_tem = []
         all_tem_choose = []
         all_tem_pts = []

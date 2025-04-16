@@ -61,12 +61,9 @@ class Camera:
         self.rgb: Optional[np.ndarray] = rgb # Allow None if image loading fails
         self.depth: Optional[np.ndarray] = depth
 
-# --- Modified PoseEstimator Class (No Pose Estimation Logic) ---
 class StandalonePoseEstimator:
     def __init__(self):
-        # No model loading needed for verification
-        print("Initializing StandalonePoseEstimator (Verification Mode - No Models Loaded)")
-        pass # No model_dir or model_cache needed
+        print("Initializing StandalonePoseEstimator")
 
     def get_pose_estimates(
         self,
