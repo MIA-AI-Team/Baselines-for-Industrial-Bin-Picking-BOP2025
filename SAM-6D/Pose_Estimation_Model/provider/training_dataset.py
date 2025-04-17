@@ -6,7 +6,7 @@ import cv2
 import trimesh
 import numpy as np
 import h5py
-
+import pandas as pd
 import torch
 import torchvision.transforms as transforms
 
@@ -135,12 +135,15 @@ class Dataset():
         gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
         valid_idx = []
         print(gt_info)
-        for k, item in enumerate(gt_info):
-            print(f"Item {k}: {item}")
+        # for k, item in enumerate(gt_info):
+        #     print(f"Item {k}: {item}")
 
-            if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
-                valid_idx.append(k)
-        
+        #     if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
+        #         valid_idx.append(k)
+        df = pd.DataFrame(gt_info)
+        valid_idx = [i for i, row in df.iterrows()
+             if row["px_count_valid"] >= self.min_visib_px and row["visib_fract"] >= self.min_visib_frac]
+
         print(f"Found {len(valid_idx)} valid instances")
         if len(valid_idx) == 0:
             print("No valid instances found")
