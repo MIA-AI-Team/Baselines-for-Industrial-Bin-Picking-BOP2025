@@ -129,28 +129,6 @@ class Dataset():
         if not self._check_path(os.path.join(self.data_dir, path_head)):
             print("Path check failed")
             return None
-
-        # # gt_info loading
-        # print("Loading gt_info...")
-        # gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
-        # valid_idx = []
-        # print(gt_info)
-        # for k, item in enumerate(gt_info):
-        #     print(f"Item {k}: {item}")
-
-        #     if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
-        #         valid_idx.append(k)
-
-
-        # print(f"Found {len(valid_idx)} valid instances")
-        # if len(valid_idx) == 0:
-        #     print("No valid instances found")
-        #     return None
-            
-        # num_instance = len(valid_idx)
-        # valid_idx = valid_idx[np.random.randint(0, num_instance)]
-        # gt_info = gt_info[valid_idx]
-        # ...existing code...
         # gt_info loading
         print("Loading gt_info...")
         gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
@@ -188,9 +166,14 @@ class Dataset():
 
         # gt loading
         print("Loading gt...")
-        gt = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_cam1.json'), 'rb'))[valid_idx]
-        
+        gt_all = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_cam1.json'), 'rb'))
+        if isinstance(gt_all, dict):
+            gt = gt_all[int(frame_id)][inst_idx]
+        else:
+            gt = gt_all[valid_idx]
         print(f"Processing object ID: {gt['obj_id']}")
+        obj_id = gt['obj_id']
+
         obj_id = gt['obj_id']
         target_R = np.array(gt['cam_R_m2c']).reshape(3,3).astype(np.float32)
         target_t = np.array(gt['cam_t_m2c']).reshape(3).astype(np.float32) / 1000.0
