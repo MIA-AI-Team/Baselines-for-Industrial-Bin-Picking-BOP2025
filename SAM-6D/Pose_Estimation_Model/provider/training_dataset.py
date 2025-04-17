@@ -130,28 +130,60 @@ class Dataset():
             print("Path check failed")
             return None
 
-        # gt_info loading
-        print("Loading gt_info...")
-        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
-        valid_idx = []
-        print(gt_info)
+        # # gt_info loading
+        # print("Loading gt_info...")
+        # gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
+        # valid_idx = []
+        # print(gt_info)
         # for k, item in enumerate(gt_info):
         #     print(f"Item {k}: {item}")
 
         #     if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
         #         valid_idx.append(k)
-        df = pd.DataFrame(gt_info)
-        valid_idx = [i for i, row in df.iterrows()
-             if row["px_count_valid"] >= self.min_visib_px and row["visib_fract"] >= self.min_visib_frac]
 
-        print(f"Found {len(valid_idx)} valid instances")
-        if len(valid_idx) == 0:
-            print("No valid instances found")
-            return None
+
+        # print(f"Found {len(valid_idx)} valid instances")
+        # if len(valid_idx) == 0:
+        #     print("No valid instances found")
+        #     return None
             
-        num_instance = len(valid_idx)
-        valid_idx = valid_idx[np.random.randint(0, num_instance)]
-        gt_info = gt_info[valid_idx]
+        # num_instance = len(valid_idx)
+        # valid_idx = valid_idx[np.random.randint(0, num_instance)]
+        # gt_info = gt_info[valid_idx]
+        # ...existing code...
+        # gt_info loading
+        print("Loading gt_info...")
+        gt_info = io_load_gt(open(os.path.join(self.data_dir, path_head+'/scene_gt_info_cam1.json'), 'rb'))
+        valid_idx = []
+        print(gt_info)
+
+        # Flatten gt_info if it's a dict of lists (frame_id -> [instances])
+        if isinstance(gt_info, dict):
+            all_items = []
+            for frame_id, instances in gt_info.items():
+                for k, item in enumerate(instances):
+                    print(f"Frame {frame_id} Item {k}: {item}")
+                    if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
+                        all_items.append((frame_id, k))
+            print(f"Found {len(all_items)} valid instances")
+            if len(all_items) == 0:
+                print("No valid instances found")
+                return None
+            # Pick a random valid instance
+            frame_id, inst_idx = all_items[np.random.randint(0, len(all_items))]
+            gt_info = gt_info[frame_id][inst_idx]
+        else:
+            for k, item in enumerate(gt_info):
+                print(f"Item {k}: {item}")
+                if item['px_count_valid'] >= self.min_visib_px and item['visib_fract'] >= self.min_visib_frac:
+                    valid_idx.append(k)
+            print(f"Found {len(valid_idx)} valid instances")
+            if len(valid_idx) == 0:
+                print("No valid instances found")
+                return None
+            valid_idx = valid_idx[np.random.randint(0, len(valid_idx))]
+            gt_info = gt_info[valid_idx]
+# ...existing code...
 
         # gt loading
         print("Loading gt...")
