@@ -180,7 +180,7 @@ class Dataset():
 
         # camera loading
         print("Loading camera parameters...")
-        camera = json.load(open(os.path.join(self.data_dir, path_head+'/scene_camera_cam1.json.json'), 'rb'))
+        camera = json.load(open(os.path.join(self.data_dir, path_head+'/scene_camera_cam1.json'), 'rb'))
         K = np.array(camera['cam_K']).reshape(3,3)
 
         # template loading
