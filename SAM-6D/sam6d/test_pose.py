@@ -226,7 +226,7 @@ def load_images(scene_dir: str, cam_names: List[str], image_id_str: str, img_fol
 
 if __name__ == "__main__":
     
-    DATASET_DIR = "/content/drive/MyDrive/bpc_opencv_dataset/ipd"
+    DATASET_DIR = "/home/seif_elkerdany/SAM6D_Final/ipd"
     MODEL_DIR = os.path.join(DATASET_DIR, "models")
     SCENE_ID = "000008"
     IMAGE_ID = 0
