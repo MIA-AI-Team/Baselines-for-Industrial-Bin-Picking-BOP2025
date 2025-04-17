@@ -268,8 +268,8 @@ class Dataset():
         return ret_dict
 
     def _get_template(self, obj_id, tem_index=1):
-        info = self.model_info[0][obj_id]
-        assert info['obj_id'] == obj_id
+        info = self.model_info[0][str(obj_id)]  # <-- convert obj_id to string
+        assert info['obj_id'] == obj_id or str(info['obj_id']) == str(obj_id)
         file_base = os.path.join(
             self.templates_paths[0],
             f'obj_{obj_id}'
