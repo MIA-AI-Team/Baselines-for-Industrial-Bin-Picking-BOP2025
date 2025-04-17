@@ -172,6 +172,7 @@ class Dataset():
             # Pick a random valid instance
             frame_id, inst_idx = all_items[np.random.randint(0, len(all_items))]
             gt_info = gt_info[frame_id][inst_idx]
+            valid_idx = inst_idx  # <--- Add this line!
         else:
             for k, item in enumerate(gt_info):
                 print(f"Item {k}: {item}")

@@ -37,40 +37,23 @@ def load_im(path):
 #     gt = [_gt_as_numpy(gt_n) for gt_n in gt]
 #     return gt
 def io_load_gt(gt_file, instance_ids=None):
-    """Load ground truth from an I/O object.
-    Instance_ids can be specified to load only a
-    subset of object instances.
+    """Load ground truth from an I/O object."""
+    gt = json.load(gt_file)
+    print("Loaded GT data type:", type(gt))
+    print("GT content:", gt)
 
-    :param gt_file: I/O object that can be read with json.load.
-    :param instance_ids: List of instance ids.
-    :return: List of ground truth annotations (one dict per object instance).
-    """
-    try:
-        # Load and parse JSON data
-        gt = json.load(gt_file)
-        print("Loaded GT data type:", type(gt))
-        print("GT content:", gt)
-        
-        # Convert string to dict if needed
-        if isinstance(gt, str):
-            gt = json.loads(gt)
-        
-        # Ensure gt is a list
-        if isinstance(gt, dict):
-            gt = [gt]
-            
-        # Filter by instance IDs if provided
-        if instance_ids is not None:
-            gt = [gt_n for n, gt_n in enumerate(gt) if n in instance_ids]
-        
-        # Convert to numpy arrays
-        gt = [_gt_as_numpy(gt_n) for gt_n in gt]
+    # If gt is a dict of lists (frame_id -> [instances]), just return as is
+    if isinstance(gt, dict):
+        # Optionally convert keys to int if needed
+        try:
+            gt = {int(k): v for k, v in gt.items()}
+        except Exception:
+            pass
         return gt
-        
-    except Exception as e:
-        print(f"Error loading ground truth data: {str(e)}")
-        print(f"GT file content: {gt_file.read()}")
-        raise
+
+    # If gt is a list, convert each entry to numpy
+    gt = [_gt_as_numpy(gt_n) for gt_n in gt]
+    return gt
 
 
 def io_load_masks(
