@@ -76,7 +76,6 @@ class PoseEstimator:
         cfg.log_dir = log_dir
         cfg.test_iter = iter_val
         cfg.det_score_thresh = float(det_score_thresh)
-        cfg.rgb_mask_flag = True
         
         gorilla.utils.set_cuda_visible_devices(gpu_ids=cfg.gpus)
         return cfg
@@ -124,21 +123,21 @@ class PoseEstimator:
         mask = mask[y1:y2, x1:x2]
 
         rgb = rgb[:,:,::-1][y1:y2, x1:x2, :]
-        if self.cfg.rgb_mask_flag:
+        if self.cfg.test_dataset.rgb_mask_flag:
             rgb = rgb * (mask[:,:,None]>0).astype(np.uint8)
 
-        rgb = cv2.resize(rgb, (self.cfg.img_size, self.cfg.img_size), interpolation=cv2.INTER_LINEAR)
+        rgb = cv2.resize(rgb, (self.cfg.test_dataset.img_size, self.cfg.test_dataset.img_size), interpolation=cv2.INTER_LINEAR)
         rgb = rgb_transform(np.array(rgb))
 
         choose = (mask>0).astype(np.float32).flatten().nonzero()[0]
-        if len(choose) <= self.cfg.n_sample_template_point:
-            choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.n_sample_template_point)
+        if len(choose) <= self.cfg.test_dataset.n_sample_template_point:
+            choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.test_dataset.n_sample_template_point)
         else:
-            choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.n_sample_template_point, replace=False)
+            choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.test_dataset.n_sample_template_point, replace=False)
         choose = choose[choose_idx]
         xyz = xyz[y1:y2, x1:x2, :].reshape((-1, 3))[choose, :]
 
-        rgb_choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.cfg.img_size)
+        rgb_choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.cfg.test_dataset.img_size)
         return rgb, rgb_choose, xyz
     
     def get_templates(self, template_dir):
@@ -183,7 +182,7 @@ class PoseEstimator:
         whole_pts = get_point_cloud_from_depth(whole_depth, K)
 
         mesh = trimesh.load_mesh(ply_obj_path)
-        model_points = mesh.sample(self.cfg.n_sample_model_point).astype(np.float32) / 1000.0
+        model_points = mesh.sample(self.cfg.test_dataset.n_sample_model_point).astype(np.float32) / 1000.0
         radius = np.max(np.linalg.norm(model_points, axis=1))
 
         all_rgb = []
@@ -222,20 +221,20 @@ class PoseEstimator:
             choose = choose[flag]
             cloud = cloud[flag]
 
-            if len(choose) <= self.cfg.n_sample_observed_point:
-                choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.n_sample_observed_point)
+            if len(choose) <= self.cfg.test_dataset.n_sample_observed_point:
+                choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.test_dataset.n_sample_observed_point)
             else:
-                choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.n_sample_observed_point, replace=False)
+                choose_idx = np.random.choice(np.arange(len(choose)), self.cfg.test_dataset.n_sample_observed_point, replace=False)
             choose = choose[choose_idx]
             cloud = cloud[choose_idx]
 
             # rgb
             rgb = whole_image.copy()[y1:y2, x1:x2, :][:,:,::-1]
-            if self.cfg.rgb_mask_flag:
+            if self.cfg.test_dataset.rgb_mask_flag:
                 rgb = rgb * (mask[:,:,None]>0).astype(np.uint8)
-            rgb = cv2.resize(rgb, (self.cfg.img_size, self.cfg.img_size), interpolation=cv2.INTER_LINEAR)
+            rgb = cv2.resize(rgb, (self.cf.test_dataset.img_size, self.cfg.test_dataset.img_size), interpolation=cv2.INTER_LINEAR)
             rgb = rgb_transform(np.array(rgb))
-            rgb_choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.cfg.img_size)
+            rgb_choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.cfg.test_dataset.img_size)
 
             all_rgb.append(torch.FloatTensor(rgb))
             all_cloud.append(torch.FloatTensor(cloud))
