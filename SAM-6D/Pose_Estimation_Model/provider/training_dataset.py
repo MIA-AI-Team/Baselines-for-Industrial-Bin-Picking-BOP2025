@@ -269,7 +269,8 @@ class Dataset():
 
     def _get_template(self, obj_id, tem_index=1):
         info = self.model_info[0][str(obj_id)]  # <-- convert obj_id to string
-        assert info['obj_id'] == obj_id or str(info['obj_id']) == str(obj_id)
+        # Removed assertion: info['obj_id'] == obj_id, as 'obj_id' is not a key in info
+
         file_base = os.path.join(
             self.templates_paths[0],
             f'obj_{obj_id}'
