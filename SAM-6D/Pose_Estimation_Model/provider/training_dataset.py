@@ -180,7 +180,11 @@ class Dataset():
 
         # camera loading
         print("Loading camera parameters...")
-        camera = json.load(open(os.path.join(self.data_dir, path_head+'/scene_camera_cam1.json'), 'rb'))
+        camera_all = json.load(open(os.path.join(self.data_dir, path_head+'/scene_camera_cam1.json'), 'rb'))
+        if isinstance(camera_all, dict):
+            camera = camera_all[str(frame_id)] if str(frame_id) in camera_all else camera_all[int(frame_id)]
+        else:
+            camera = camera_all
         K = np.array(camera['cam_K']).reshape(3,3)
 
         # template loading
