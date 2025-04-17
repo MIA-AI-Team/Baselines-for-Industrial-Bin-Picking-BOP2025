@@ -232,7 +232,7 @@ class PoseEstimator:
             rgb = whole_image.copy()[y1:y2, x1:x2, :][:,:,::-1]
             if self.cfg.test_dataset.rgb_mask_flag:
                 rgb = rgb * (mask[:,:,None]>0).astype(np.uint8)
-            rgb = cv2.resize(rgb, (self.cf.test_dataset.img_size, self.cfg.test_dataset.img_size), interpolation=cv2.INTER_LINEAR)
+            rgb = cv2.resize(rgb, (self.cfg.test_dataset.img_size, self.cfg.test_dataset.img_size), interpolation=cv2.INTER_LINEAR)
             rgb = rgb_transform(np.array(rgb))
             rgb_choose = get_resize_rgb_choose(choose, [y1, y2, x1, x2], self.cfg.test_dataset.img_size)
 
