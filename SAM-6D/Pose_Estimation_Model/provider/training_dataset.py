@@ -138,7 +138,7 @@ class Dataset():
         for k, item in enumerate(gt_info):
             print(f"Item {k}: {item}")
 
-            if item[k]['px_count_valid'] >= self.min_visib_px and item[k]['visib_fract'] >= self.min_visib_frac:
+            if item[str(k)]['px_count_valid'] >= self.min_visib_px and item[str(k)]['visib_fract'] >= self.min_visib_frac:
                 valid_idx.append(k)
         
         print(f"Found {len(valid_idx)} valid instances")
