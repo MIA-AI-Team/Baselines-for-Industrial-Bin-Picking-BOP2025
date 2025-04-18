@@ -4,7 +4,7 @@ log_dir: ${save_dir}
 segmentor_width_size: 640 # make it stable
 descriptor_width_size: 640
 visible_thred: 0.5
-pointcloud_sample_num: 2048
+pointcloud_sample_num: 1024 #2048
 
 defaults:
   - segmentor_model: fast_sam
@@ -14,14 +14,14 @@ post_processing_config:
   mask_post_processing:
     min_box_size: 0.05 # relative to image size 
     min_mask_size: 3e-4 # relative to image size
-  nms_thresh: 0.25
+  nms_thresh: 0.6
 
 matching_config: 
   metric:
     _target_: model.loss.PairwiseSimilarity
     metric: cosine
-    chunk_size: 16
-  aggregation_function: avg_5
+    chunk_size: 1
+  aggregation_function: mean # avg_5
   confidence_thresh: 0.2
 
 onboarding_config:

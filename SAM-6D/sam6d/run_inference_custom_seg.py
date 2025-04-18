@@ -241,8 +241,21 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
     detections.save_to_file(0, 0, 0, save_path, "Custom", return_results=False)
     detections = convert_npz_to_json(idx=0, list_npz_paths=[save_path+".npz"])
     save_json_bop23(save_path+".json", detections)
-    vis_img = visualize(rgb, detections, f"{output_dir}/sam6d_results/vis_ism.png")
-    vis_img.save(f"{output_dir}/sam6d_results/vis_ism.png")
+    
+    # Extract scene_id and image_id from rgb_path
+    rgb_dir = os.path.dirname(rgb_path)
+    scene_dir = os.path.dirname(os.path.dirname(rgb_dir))
+    scene_id = os.path.basename(scene_dir)  
+    image_id = os.path.splitext(os.path.basename(rgb_path))[0]  
+    
+    # Extract objs_id from cad_path
+   
+    objs_id = object_name 
+    
+   # Save visualization with the new filename format
+    vis_save_path = f"{output_dir}/sam6d_results/vis_ism_{scene_id}_{image_id}_{objs_id}.png"
+    vis_img = visualize(rgb, detections, vis_save_path)
+    vis_img.save(vis_save_path)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

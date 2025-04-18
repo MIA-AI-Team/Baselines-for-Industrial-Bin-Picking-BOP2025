@@ -3,13 +3,14 @@ import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation # Still needed for calc_pose_matrix if R,t loaded
 import sys
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import glob
 import json
 import re # For extracting camera name from filename
 import matplotlib.pyplot as plt
-from pose_interface import run_sam6d_pipeline
-
+from pose_interface import SAM6DPipeline
+import argparse
+from pose_msgs import Pose, PoseEstimateMsg
 # --- Helper Functions ---
 
 def calc_pose_matrix(R: np.ndarray, t: np.ndarray) -> np.ndarray:
@@ -64,6 +65,12 @@ class Camera:
 class StandalonePoseEstimator:
     def __init__(self):
         print("Initializing StandalonePoseEstimator")
+        self.pipeline = SAM6DPipeline(
+            
+            segmentor_model="fastsam",
+            stability_score_thresh=0.97,
+            det_score_thresh=0.37
+        )
 
     def get_pose_estimates(
         self,
@@ -72,30 +79,40 @@ class StandalonePoseEstimator:
         cam_2: Camera,
         cam_3: Camera,
         photoneo: Optional[Camera] = None,
-    ) -> List[Dict[str, Any]]:
+        output_suffix: str = "",
+    ) -> List[PoseEstimateMsg]:
         """
         Estimates poses for given object IDs using data from cam_1, cam_2, cam_3.
+        Returns a list of PoseEstimateMsg objects.
+        
+        Args:
+            object_ids: List of object IDs to process
+            cam_1, cam_2, cam_3: Required camera objects
+            photoneo: Optional photoneo camera
+            output_suffix: Suffix to add to output directory names (e.g., image ID)
         """
         pose_estimates_results = []
         # Explicit check for the required cameras passed to this function
         if not all([cam_1, cam_2, cam_3]):
-             missing = []
-             if not cam_1: missing.append("cam_1")
-             if not cam_2: missing.append("cam_2")
-             if not cam_3: missing.append("cam_3")
-             print(f"Error: get_pose_estimates requires valid Camera objects for {missing}.")
-             # Depending on desired behavior, could raise error or return empty
-             # Raising error is safer if these are truly required.
-             raise ValueError(f"Missing required Camera objects for pose estimation: {missing}")
-
-        cams = [cam_1, cam_2, cam_3] # Use only the three required cams for BPC Capture
+            missing = []
+            if not cam_1: missing.append("cam_1")
+            if not cam_2: missing.append("cam_2")
+            if not cam_3: missing.append("cam_3")
+            print(f"Error: get_pose_estimates requires valid Camera objects for {missing}.")
+            raise ValueError(f"Missing required Camera objects for pose estimation: {missing}")
 
         for object_id in object_ids:
             print(f"Running SAM-6D pipeline for object_id: {object_id}")
             # template dir is dataset_dir/templates/obj_000000 where 000000 is the object_id
             template_dir = os.path.join(DATASET_DIR, "templates", f"obj_{object_id:06d}")
             ply_obj_path = os.path.join(DATASET_DIR, "models", f"obj_{object_id:06d}.ply")
-            output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}")
+            
+            # Add image ID suffix to output directory if provided
+            if output_suffix:
+                output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}/{output_suffix}")
+            else:
+                output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}")
+                
             if not os.path.exists(template_dir):
                 print(f"Warning: Template directory does not exist: {template_dir}")
                 continue
@@ -103,50 +120,36 @@ class StandalonePoseEstimator:
                 print(f"Warning: Object model file does not exist: {ply_obj_path}")
                 continue
             
-            run_sam6d_pipeline(
-                camera=cams[0],  # Using only cam_1
+            # Run SAM-6D pipeline for object detection and pose estimation
+            detections, _ = self.pipeline.predict(
+                camera=cam_1,  # Using only cam_1
                 template_dir=template_dir,
                 ply_obj_path=ply_obj_path,
-                output_dir=output_dir,
-                segmentor_model="fastsam",
-                stability_score_thresh=0.97,
-                det_score_thresh=0.5
+                output_dir=output_dir
             )
-
-            # images = [cam.rgb for cam in cams]
-            # RTs = [cam.pose for cam in cams]
-            # Ks = [cam.intrinsics for cam in cams]
-
-            # print(f"Creating Capture object for object_id: {object_id}")
-            # capture = Capture(images, Ks, RTs, object_id)
-
-            # print("Running detection...")
-            # t_start = time.time()
-            # try:
-            #     # Using private methods - replace with public API if available
-            #     detections = pose_estimator._detect(capture)
-            #     print(f"Detection found {len(detections)} potential objects.")
-            #     pose_predictions = pose_estimator._match(capture, detections)
-            #     print(f"Matching resulted in {len(pose_predictions)} predictions.")
-            #     pose_estimator._estimate_rotation(pose_predictions)
-            #     print(f"Pose estimation completed in {time.time() - t_start:.3f} seconds.")
-
-            #     for detection in pose_predictions:
-            #         if hasattr(detection, 'pose') and isinstance(detection.pose, np.ndarray) and detection.pose.shape == (4,4):
-            #             estimate = {
-            #                 "obj_id": object_id,
-            #                 "score": getattr(detection, 'score', 1.0),
-            #                 "pose": detection.pose
-            #             }
-            #             pose_estimates_results.append(estimate)
-            #             print(f"  Added estimate for obj {object_id} with score {estimate['score']:.3f}")
-            #         else:
-            #              print(f"  Warning: Skipping detection for obj {object_id} due to missing/invalid pose attribute.")
-
-            # except Exception as e:
-            #     print(f"Error during pose estimation pipeline for object {object_id}: {e}")
-            #     import traceback
-            #     traceback.print_exc()
+            
+            # Process the detections to create PoseEstimateMsg objects
+            if detections:
+                for det in detections:
+                    # Check if detection has required pose information
+                    if 'R' in det and 't' in det and 'score' in det:
+                        # Construct 4x4 transformation matrix
+                        R = np.array(det['R'], dtype=np.float64)
+                        t = np.array(det['t'], dtype=np.float64) / 1000.0  # Convert to meters if in mm
+                        
+                        pose_matrix = np.eye(4)
+                        pose_matrix[:3, :3] = R
+                        pose_matrix[:3, 3] = t
+                        
+                        # Create PoseEstimateMsg
+                        pose_msg = PoseEstimateMsg(
+                            obj_id=object_id,
+                            score=float(det['score']),
+                            pose=Pose.from_matrix(pose_matrix)
+                        )
+                        
+                        pose_estimates_results.append(pose_msg)
+                        print(f"  Added pose estimate for obj {object_id} with score {det['score']:.3f}")
 
         return pose_estimates_results
 
@@ -224,22 +227,141 @@ def load_images(scene_dir: str, cam_names: List[str], image_id_str: str, img_fol
         images[cam_name] = img # Store image array or None
     return images
 
-if __name__ == "__main__":
+def process_single_image(
+    image_id: int, 
+    scene_dir: str,
+    object_ids: List[int],
+    discovered_cam_names: List[str]
+) -> Tuple[bool, Dict[str, List[PoseEstimateMsg]]]:
+    """
+    Process a single image from the scene.
     
-    DATASET_DIR = "/home/seif_elkerdany/SAM6D_Final/ipd"
+    Args:
+        image_id: ID of the image to process
+        scene_dir: Path to the scene directory
+        object_ids: List of object IDs to test
+        discovered_cam_names: List of camera names discovered in the scene
+        
+    Returns:
+        success: Whether processing was successful
+        results: Dictionary mapping image ID to list of pose estimates
+    """
+    image_id_str = f"{image_id:06d}"
+    print(f"\n\n----- Processing Image ID: {image_id} (Filename: {image_id_str}) -----")
+    
+    # Load images for this specific image ID
+    rgb_images = load_images(scene_dir, discovered_cam_names, image_id_str, "rgb")
+    depth_images = load_images(scene_dir, discovered_cam_names, image_id_str, "depth")
+    
+    # Create Camera objects
+    print(f"\nCreating Camera objects for image {image_id}...")
+    cameras = {}
+    for cam_name in discovered_cam_names:
+        print(f"  Processing camera: {cam_name}")
+        rgb_img = rgb_images.get(cam_name)
+        depth_img = depth_images.get(cam_name)
+        
+        try:
+            # Get camera parameters for this image ID
+            all_cam_params = load_camera_params(scene_dir)
+            if cam_name not in all_cam_params or not all_cam_params[cam_name]['K']:
+                print(f"    - Parameters not loaded. Skipping object creation.")
+                continue
+                
+            if image_id >= len(all_cam_params[cam_name]['K']): 
+                raise IndexError("Index out of bounds")
+                
+            K = all_cam_params[cam_name]['K'][image_id]
+            R = all_cam_params[cam_name]['R'][image_id]
+            t = all_cam_params[cam_name]['t'][image_id]
+            
+            if K is None or R is None or t is None: 
+                raise ValueError("Params are None")
+                
+            RT = calc_pose_matrix(R, t)
+            cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img, depth=depth_img)
+            print(f"    + Successfully created Camera object for {cam_name} (Image loaded: {'Yes' if rgb_img is not None else 'No'})")
+        except (IndexError, ValueError, KeyError) as e:
+            print(f"    - Error accessing parameters for {cam_name} at index {image_id}: {e}")
+        except Exception as e:
+            print(f"    - Unexpected error creating Camera object for {cam_name}: {e}")
+    
+    # Check for required cameras
+    print(f"\nChecking for required cameras for image {image_id}...")
+    cam_1 = cameras.get("cam1")
+    cam_2 = cameras.get("cam2")
+    cam_3 = cameras.get("cam3")
+    photoneo_cam = cameras.get("photoneo")
+    
+    required_cams_found = all([cam_1, cam_2, cam_3])
+    if not required_cams_found:
+        print("  - Missing one or more required cameras. Skipping pose estimation.")
+        return False, {}
+    
+    print("  + All required cameras found. Running pose estimation...")
+    
+    # Initialize estimator and run pose estimation
+    
+    pose_estimates = estimator.get_pose_estimates(
+        object_ids=object_ids,
+        cam_1=cam_1,
+        cam_2=cam_2,
+        cam_3=cam_3,
+        photoneo=photoneo_cam,
+        output_suffix=image_id_str
+    )
+    
+    # Store results for this image
+    results = {image_id_str: pose_estimates}
+    
+    return True, results
+
+if __name__ == "__main__":
+    # --- Argument Parser ---
+
+    parser = argparse.ArgumentParser(description="Run pose estimation on a dataset.")
+    parser.add_argument('--dataset_dir', type=str, default="/content/drive/MyDrive/bpc_opencv_dataset/ipd",
+                        help="Path to the dataset directory")
+    parser.add_argument('--scene_id', type=str, default="000008",
+                        help="Scene ID (e.g., 000008)")
+    parser.add_argument('--object_ids', type=int, nargs='+', default=[14],
+                        help="List of object IDs to test (e.g., 14)")
+    
+    # New options for multiple image processing
+    image_group = parser.add_mutually_exclusive_group()
+    image_group.add_argument('--image_ids', type=int, nargs='+',
+                            help="List of specific image IDs to process (e.g., 0 1 2)")
+    image_group.add_argument('--image_range', type=int, nargs=2,
+                            help="Range of image IDs to process [start end] (inclusive)")
+    image_group.add_argument('--image_id', type=int, default=0,
+                            help="Single image ID to process (default: 0)")
+
+    args = parser.parse_args()
+
+    # --- Set Variables from Arguments ---
+    DATASET_DIR = args.dataset_dir
     MODEL_DIR = os.path.join(DATASET_DIR, "models")
-    SCENE_ID = "000008"
-    IMAGE_ID = 64
-    OBJECT_IDS_TO_TEST = [1]
+    SCENE_ID = args.scene_id
+    OBJECT_IDS_TO_TEST = args.object_ids
+
+    # Determine which image IDs to process
+    if args.image_ids:
+        image_ids_to_process = args.image_ids
+        print(f"Processing specific image IDs: {image_ids_to_process}")
+    elif args.image_range:
+        start, end = args.image_range
+        image_ids_to_process = list(range(start, end + 1))
+        print(f"Processing image ID range: {start} to {end}")
+    else:
+        image_ids_to_process = [args.image_id]
+        print(f"Processing single image ID: {args.image_id}")
 
     # --- Step 3: Prepare Paths ---
     scene_dir = os.path.join(DATASET_DIR, "test", SCENE_ID)
-    image_id_str = f"{IMAGE_ID:06d}"
 
     print("--- Starting Data Loading Verification via get_pose_estimates ---")
     print(f"Dataset Directory: {DATASET_DIR}")
     print(f"Scene Directory: {scene_dir}")
-    print(f"Image Index: {IMAGE_ID} (Filename ID: {image_id_str})")
     print(f"Object IDs to test: {OBJECT_IDS_TO_TEST}")
 
     if not os.path.isdir(scene_dir):
@@ -253,101 +375,71 @@ if __name__ == "__main__":
         if not discovered_cam_names: raise FileNotFoundError(f"No camera param files found in {scene_dir}.")
         print(f"Discovered cameras: {discovered_cam_names}")
 
-        # --- Step 5: Load Images for the SPECIFIC image_id ---
-        rgb_images = load_images(scene_dir, discovered_cam_names, image_id_str, "rgb")
-        depth_images = load_images(scene_dir, discovered_cam_names, image_id_str, "depth")
-
-        # --- Step 6: Create Camera Objects ---
-        print("\nCreating Camera objects...")
-        cameras = {}
-        for cam_name in discovered_cam_names:
-            print(f"  Processing camera: {cam_name}")
-            rgb_img = rgb_images.get(cam_name) # Get image array or None
-            depth_img = depth_images.get(cam_name) # Get depth array or None
-            if cam_name not in all_cam_params or not all_cam_params[cam_name]['K']:
-                print(f"    - Parameters not loaded. Skipping object creation.")
-                continue
-            # Allow Camera object creation even if image failed to load (rgb_img is None)
-            # But parameters must exist for this IMAGE_ID
-
-            try:
-                if IMAGE_ID >= len(all_cam_params[cam_name]['K']): raise IndexError("Index out of bounds")
-                K = all_cam_params[cam_name]['K'][IMAGE_ID]
-                R = all_cam_params[cam_name]['R'][IMAGE_ID]
-                t = all_cam_params[cam_name]['t'][IMAGE_ID]
-                if K is None or R is None or t is None: raise ValueError("Params are None")
-                RT = calc_pose_matrix(R, t)
-                # Create Camera object, passing rgb_img (which might be None)
-                cameras[cam_name] = Camera(name=cam_name, pose=RT, intrinsics=K, rgb=rgb_img, depth=depth_img)
-                print(f"    + Successfully created Camera object for {cam_name} (Image loaded: {'Yes' if rgb_img is not None else 'No'})")
-            except (IndexError, ValueError, KeyError) as e:
-                print(f"    - Error accessing/processing parameters for {cam_name} at index {IMAGE_ID}: {e}. Skipping object creation.")
-            except Exception as e:
-                print(f"    - Unexpected error creating Camera object for {cam_name}: {e}. Skipping.")
-
-
-        # --- Step 7: Check for required cameras and get objects ---
-        print("\nChecking for required cameras (cam1, cam2, cam3)...")
-        cam_1 = cameras.get("cam1")
-        cam_2 = cameras.get("cam2")
-        cam_3 = cameras.get("cam3")
-        photoneo_cam = cameras.get("photoneo")
-
-        required_cams_found = True
-        if not cam_1: print("  - Warning: Camera object 'cam1' not created."); required_cams_found = False
-        if not cam_2: print("  - Warning: Camera object 'cam2' not created."); required_cams_found = False
-        if not cam_3: print("  - Warning: Camera object 'cam3' not created."); required_cams_found = False
-
-        if not required_cams_found:
-            print("\nOne or more required cameras (cam1, cam2, cam3) failed object creation. Cannot call get_pose_estimates.")
-        else:
-            print("  + Required camera objects (cam1, cam2, cam3) created. Proceeding.")
-            print(f"  Photoneo camera object created: {'Yes' if photoneo_cam else 'No'}")
-
-            # --- Step 8: Initialize "Estimator" (Verification Mode) ---
-            estimator = StandalonePoseEstimator() # No args needed
-
-            # --- Step 9: Call get_pose_estimates for Verification ---
-            print("\n--- Calling get_pose_estimates ---")
-            # This will now print params and show images internally
-            pose_estimates = estimator.get_pose_estimates(
+        # --- Process each image ---
+        estimator = StandalonePoseEstimator()
+        all_results = {}
+        
+        for image_id in image_ids_to_process:
+            success, results = process_single_image(
+                image_id=image_id,
+                scene_dir=scene_dir,
                 object_ids=OBJECT_IDS_TO_TEST,
-                cam_1=cam_1,
-                cam_2=cam_2,
-                cam_3=cam_3,
-                photoneo=photoneo_cam
+                discovered_cam_names=discovered_cam_names
             )
-            print("\n--- Pose Estimation Results ---")
-            if not pose_estimates:
-                print("No poses estimated.")
-            else:
-                for estimate in pose_estimates:
-                    print(f"Object ID: {estimate['obj_id']}")
-                    print(f"  Score: {estimate['score']:.4f}")
-                    pose_mat = estimate['pose']
-                    with np.printoptions(precision=3, suppress=True):
-                        print(f"  Pose (4x4 Matrix):\n{pose_mat}")
-                    try:
-                        quat = rot_to_quat(pose_mat[:3, :3])
-                        print(f"  Orientation (Quat xyzw): [{quat[0]:.3f}, {quat[1]:.3f}, {quat[2]:.3f}, {quat[3]:.3f}]")
-                        pos = pose_mat[:3, 3]
-                        print(f"  Position (xyz): [{pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f}]")
-                    except Exception as e:
-                        print(f"  Could not extract quat/pos from pose matrix: {e}")
-                    print("-" * 20)
-
-
-        # except FileNotFoundError as e:
-        #     print(f"\nError: A required file or directory was not found.")
-        #     print(e)
-        # except (ValueError, IndexError, json.JSONDecodeError) as e:
-        #     print(f"\nError processing data:")
-        #     print(e)
-        # except ImportError as e:
-        #     print(f"\nImport Error: {e}")
-        # except Exception as e:
-        #     print(f"\nAn unexpected error occurred: {e}")
-        #     import traceback
-        #     traceback.print_exc()
-
+            
+            if success:
+                all_results.update(results)
+        
+        # --- Output Summary ---
+        print("\n=== Overall Results Summary ===")
+        if not all_results:
+            print("No successful pose estimations.")
+        else:
+            for image_id, pose_estimates in all_results.items():
+                print(f"\nImage ID: {image_id}")
+                if not pose_estimates:
+                    print("  No poses estimated.")
+                else:
+                    for i, estimate in enumerate(pose_estimates):
+                        print(f"  Detection {i+1}:")
+                        print(f"    Object ID: {estimate.obj_id}")
+                        print(f"    Score: {estimate.score:.4f}")
+                        print(f"    Position: [{estimate.pose.position.x:.3f}, {estimate.pose.position.y:.3f}, {estimate.pose.position.z:.3f}]")
+                        print(f"    Orientation (Quat xyzw): [{estimate.pose.orientation.x:.3f}, {estimate.pose.orientation.y:.3f}, "
+                              f"{estimate.pose.orientation.z:.3f}, {estimate.pose.orientation.w:.3f}]")
+        
+        # --- Save Results to JSON ---
+        results_dir = os.path.join(DATASET_DIR, "results", f"scene_{SCENE_ID}")
+        os.makedirs(results_dir, exist_ok=True)
+        
+        # Save combined results
+        combined_results_file = os.path.join(results_dir, "combined_pose_results.json")
+        
+        # Convert results to serializable format
+        serializable_results = {}
+        for image_id, pose_estimates in all_results.items():
+            serializable_results[image_id] = []
+            for est in pose_estimates:
+                serializable_results[image_id].append({
+                    "obj_id": est.obj_id,
+                    "score": est.score,
+                    "pose": {
+                        "position": {
+                            "x": est.pose.position.x,
+                            "y": est.pose.position.y,
+                            "z": est.pose.position.z
+                        },
+                        "orientation": {
+                            "x": est.pose.orientation.x,
+                            "y": est.pose.orientation.y,
+                            "z": est.pose.orientation.z,
+                            "w": est.pose.orientation.w
+                        }
+                    }
+                })
+        
+        with open(combined_results_file, 'w') as f:
+            json.dump(serializable_results, f, indent=2)
+        
+        print(f"\nResults saved to: {combined_results_file}")
         print("\n--- Test Script Finished ---")

@@ -8,13 +8,12 @@ import numpy as np
 import random
 import importlib
 import json
-
 import torch
 import torchvision.transforms as transforms
 import cv2
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.join(BASE_DIR, '..', 'Pose_Estimation_Model')
+ROOT_DIR = os.path.join(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'provider'))
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'model'))
@@ -307,9 +306,15 @@ if __name__ == "__main__":
         json.dump(detections, f)
 
     print("=> visualizating ...")
-    save_path = os.path.join(f"{cfg.output_dir}/sam6d_results", 'vis_pem.png')
+    # Extract scene_id, image_id, and objsid from paths
+    scene_id = os.path.basename(os.path.dirname(os.path.dirname(cfg.rgb_path))) 
+    image_id = os.path.splitext(os.path.basename(cfg.rgb_path))[0]  
+    objsid = os.path.splitext(os.path.basename(cfg.cad_path))[0].split('_')[1] 
+
+    # Create the new save_path with the extracted identifiers
+    save_path = os.path.join(f"{cfg.output_dir}/sam6d_results", f'vis_pem_{scene_id}_{image_id}_{objsid}.png')
+
     valid_masks = pose_scores <= pose_scores.max()
     K = input_data['K'].detach().cpu().numpy()[valid_masks]
     vis_img = visualize(img, pred_rot[valid_masks], pred_trans[valid_masks], model_points*1000, K, save_path)
     vis_img.save(save_path)
-
