@@ -110,7 +110,7 @@ class StandalonePoseEstimator:
                 output_dir=output_dir,
                 segmentor_model="fastsam",
                 stability_score_thresh=0.97,
-                det_score_thresh=0.37
+                det_score_thresh=0.5
             )
 
             # images = [cam.rgb for cam in cams]
@@ -229,8 +229,8 @@ if __name__ == "__main__":
     DATASET_DIR = "/home/seif_elkerdany/SAM6D_Final/ipd"
     MODEL_DIR = os.path.join(DATASET_DIR, "models")
     SCENE_ID = "000008"
-    IMAGE_ID = 0
-    OBJECT_IDS_TO_TEST = [14]
+    IMAGE_ID = 64
+    OBJECT_IDS_TO_TEST = [1]
 
     # --- Step 3: Prepare Paths ---
     scene_dir = os.path.join(DATASET_DIR, "test", SCENE_ID)
