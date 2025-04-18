@@ -18,7 +18,7 @@ pytorch-lightning
 pycocotools 
 distinctipy
 # git+https://github.com/facebookresearch/segment-anything.git  # SAM
-ultralytics==8.0.135  # FastSAM
+ultralytics
 PEM
 timm
 gorilla-core==0.2.7.8
