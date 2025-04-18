@@ -36,7 +36,7 @@ from utils.draw_utils import draw_detections
 # Transformations for RGB images
 rgb_transform = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transforms.Normalize(mean=[0.458971, 0.458971, 0.458971], std=[0.225609, 0.225609, 0.225609])
 ])
 
 class PoseEstimator:
