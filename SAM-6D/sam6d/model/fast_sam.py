@@ -124,7 +124,7 @@ class FastSAM(object):
             orig_size = image.shape[:2]
         
         model = ultralytics.FastSAM("FastSAM-s.pt")
-        detections = model(image, retina_masks=False, imgsz=300, conf=0.4, iou=0.9)
+        detections = model(image, retina_masks=False, imgsz=400, conf=0.4, iou=0.9)
 
         masks = detections[0].masks.data
         boxes = detections[0].boxes.data[:, :4]  # two lasts:  confidence and class
