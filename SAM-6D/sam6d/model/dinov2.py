@@ -35,6 +35,35 @@ class Weights(Enum):
 _DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.  Utils
+# ─────────────────────────────────────────────────────────────────────────────
+from contextlib import contextmanager
+import torch
+from torch import Tensor
+from torch.amp import autocast
+
+
+@contextmanager
+def maybe_autocast(enabled: bool = True):
+    """
+    Context‑manager that activates torch.autocast *only* when CUDA is available
+    and `enabled` is True.  Saves ~40 % VRAM in forward passes that are
+    dominated by matrix‑mult / convolution (DINOv2 falls in that bucket).
+    """
+    if enabled and torch.cuda.is_available():
+        with autocast(device_type="cuda"):
+            yield
+    else:
+        yield
+
+
+def _chunk_indices(n: int, chunk: int):
+    """Generator that yields (start, end) tuples to slice `n` items in steps of `chunk`."""
+    for s in range(0, n, chunk):
+        yield s, min(s + chunk, n)
+
+
 def _make_dinov2_model_name(arch_name: str, patch_size: int, num_register_tokens: int = 0) -> str:
     compact_arch_name = arch_name.replace("_", "")[:4]
     registers_suffix = f"_reg{num_register_tokens}" if num_register_tokens else ""
@@ -100,6 +129,7 @@ class CustomDINOv2(pl.LightningModule):
         checkpoint_dir,
         patch_size=14,
         validpatch_thresh=0.5,
+        use_amp: bool = True
     ):
         super().__init__()
         self.model_name = model_name
@@ -115,7 +145,7 @@ class CustomDINOv2(pl.LightningModule):
         self.rgb_normalize = T.Compose(
             [
                 T.ToTensor(),
-                T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+                T.Normalize(mean=[0.458971, 0.458971, 0.458971], std=[0.225609, 0.225609, 0.225609]),
             ]
         )
         # use for global feature
@@ -124,24 +154,71 @@ class CustomDINOv2(pl.LightningModule):
             descriptor_width_size, dividable_size=self.patch_size
         )
         self.patch_kernel = torch.nn.AvgPool2d(kernel_size=self.patch_size, stride=self.patch_size)
+
+
+        self._use_amp = bool(use_amp)
+
         logging.info(
             f"Init CustomDINOv2 with full size={descriptor_width_size} and proposal size={self.proposal_size} done!"
         )
 
-    def process_rgb_proposals(self, image_np, masks, boxes):
+    @torch.no_grad()
+    def process_rgb_proposals(self, image_np: np.ndarray, masks: Tensor, boxes: Tensor) -> Tensor:
         """
-        1. Normalize image with DINOv2 transfom
-        2. Mask and crop each proposals
-        3. Resize each proposals to predefined longest image size
+        Previous implementation duplicated the *whole* (C,H,W) tensor on the GPU
+        `num_proposals` times.  That explodes as soon as there are many masks.
+
+        New strategy
+        ------------
+        • Keep every heavy op on the **CPU** until the very last moment.
+        • Stream proposals to the GPU in `self.chunk_size` mini‑batches.
+        • Optionally process in FP16 (controlled by self.use_amp).
         """
-        num_proposals = len(masks)
-        rgb = self.rgb_normalize(image_np).to(masks.device).float()
-        rgbs = rgb.unsqueeze(0).repeat(num_proposals, 1, 1, 1)
-        masked_rgbs = rgbs * masks.unsqueeze(1)
-        processed_masked_rgbs = self.rgb_proposal_processor(
-            masked_rgbs, boxes
-        )  # [N, 3, target_size, target_size]
-        return processed_masked_rgbs
+        device = masks.device               # "remember" where the caller lives
+        cpu_rgb = self.rgb_normalize(image_np).float().cpu()        # (3,H,W) on *CPU*
+        cpu_masks = masks.cpu()                                   # (N, H, W) on CPU
+        outputs = []
+
+        for start, end in _chunk_indices(len(cpu_masks), self.chunk_size):
+            # Slice the current mini‑batch  -----------------------------------
+            m = cpu_masks[start:end]                                # (B,H,W)
+            rgbs = cpu_rgb.unsqueeze(0).expand(len(m), -1, -1, -1)  # (B,3,H,W)
+            masked = rgbs * m.unsqueeze(1)                          # (B,3,H,W)
+
+            # Crop / resize / pad – *still* on CPU ----------------------------
+            out = self.rgb_proposal_processor(masked, boxes[start:end])
+            outputs.append(out)                                     # (B,3,S,S)
+
+        # Concatenate, but keep on CPU; we will push to GPU per‑chunk later
+        return torch.cat(outputs, 0)                                # (N,3,S,S)
+
+    # ≡≡≡ 2‑b  Mask proposals  ≡≡≡
+    @torch.no_grad()
+    def process_masks_proposals(self, masks: Tensor, boxes: Tensor) -> Tensor:
+        cpu_masks = masks.cpu().unsqueeze(1)                        # (N,1,H,W)
+        outs = []
+        for start, end in _chunk_indices(len(cpu_masks), self.chunk_size):
+            outs.append(
+                self.rgb_proposal_processor(cpu_masks[start:end], boxes[start:end])
+            )
+        return torch.cat(outs, 0).squeeze(1)                        # (N,S,S)
+
+    # ────────────────────────────────────────────────────────────────────────
+    # 3.  Chunked inference + mixed precision
+    # ────────────────────────────────────────────────────────────────────────
+    @torch.no_grad()
+    def forward_by_chunk(self, processed_rgbs: Tensor) -> Tensor:
+        """Same public behaviour – but the *internals* now push one mini‑batch
+        at a time to the GPU and immediately free it afterwards."""
+        feats = []
+        for start, end in _chunk_indices(len(processed_rgbs), self.chunk_size):
+            with maybe_autocast(self._use_amp):
+                x = processed_rgbs[start:end].to(next(self.model.parameters()).device, non_blocking=True)
+                feats.append(self.model(x))            # returns (B,D)
+            del x                                      # free ASAP
+            torch.cuda.empty_cache()
+        return torch.cat(feats, 0)                     # (N,D)
+
 
     @torch.no_grad()
     def compute_features(self, images, token_name):
@@ -154,17 +231,17 @@ class CustomDINOv2(pl.LightningModule):
             raise NotImplementedError
         return features
 
-    @torch.no_grad()
-    def forward_by_chunk(self, processed_rgbs):
-        batch_rgbs = BatchedData(batch_size=self.chunk_size, data=processed_rgbs)
-        del processed_rgbs  # free memory
-        features = BatchedData(batch_size=self.chunk_size)
-        for idx_batch in range(len(batch_rgbs)):
-            feats = self.compute_features(
-                batch_rgbs[idx_batch], token_name="x_norm_clstoken"
-            )
-            features.cat(feats)
-        return features.data
+    # @torch.no_grad()
+    # def forward_by_chunk(self, processed_rgbs):
+    #     batch_rgbs = BatchedData(batch_size=self.chunk_size, data=processed_rgbs)
+    #     del processed_rgbs  # free memory
+    #     features = BatchedData(batch_size=self.chunk_size)
+    #     for idx_batch in range(len(batch_rgbs)):
+    #         feats = self.compute_features(
+    #             batch_rgbs[idx_batch], token_name="x_norm_clstoken"
+    #         )
+    #         features.cat(feats)
+    #     return features.data
 
 
     @torch.no_grad()
@@ -175,18 +252,18 @@ class CustomDINOv2(pl.LightningModule):
         return self.forward_by_chunk(processed_rgbs)
 
 
-    def process_masks_proposals(self, masks, boxes):
-        """
-        1. Normalize image with DINOv2 transfom
-        2. Mask and crop each proposals
-        3. Resize each proposals to predefined longest image size
-        """
-        num_proposals = len(masks)
-        masks.unsqueeze_(1) # [N_proposal, 1, ImgH, ImgW]
-        processed_masks = self.rgb_proposal_processor(
-            masks, boxes
-        ).squeeze_()  # [N, 1, target_size, target_size]
-        return processed_masks
+    # def process_masks_proposals(self, masks, boxes):
+    #     """
+    #     1. Normalize image with DINOv2 transfom
+    #     2. Mask and crop each proposals
+    #     3. Resize each proposals to predefined longest image size
+    #     """
+    #     num_proposals = len(masks)
+    #     masks.unsqueeze_(1) # [N_proposal, 1, ImgH, ImgW]
+    #     processed_masks = self.rgb_proposal_processor(
+    #         masks, boxes
+    #     ).squeeze_()  # [N, 1, target_size, target_size]
+    #     return processed_masks
 
     @torch.no_grad()
     def forward_patch_tokens(self, image_np, proposals):
@@ -248,7 +325,12 @@ class CustomDINOv2(pl.LightningModule):
         return cls_features.data, patch_features.data
 
     def compute_cls_and_patch_features(self, images, masks):
-        features = self.model(images, is_training=True)
+        device  = next(self.model.parameters()).device       # GPU (or CPU)
+
+        images  = images.to(device,  non_blocking=True)
+        masks   = masks.to(device,   non_blocking=True)
+        with maybe_autocast(self._use_amp):                  # mixed‑precision opt‑in
+            features = self.model(images, is_training=True)
         patch_features = features["x_norm_patchtokens"]
         cls_features = features["x_norm_clstoken"]
         features_mask = self.patch_kernel(masks).flatten(-2) > self.validpatch_thresh

@@ -320,7 +320,7 @@ if __name__ == "__main__":
     # --- Argument Parser ---
 
     parser = argparse.ArgumentParser(description="Run pose estimation on a dataset.")
-    parser.add_argument('--dataset_dir', type=str, default="/content/drive/MyDrive/bpc_opencv_dataset/ipd",
+    parser.add_argument('--dataset_dir', type=str, default="/home/seif_elkerdany/SAM6D_Final/ipd",
                         help="Path to the dataset directory")
     parser.add_argument('--scene_id', type=str, default="000008",
                         help="Scene ID (e.g., 000008)")
