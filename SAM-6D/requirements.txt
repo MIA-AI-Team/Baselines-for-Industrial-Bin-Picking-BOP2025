@@ -1,5 +1,5 @@
-torch==2.0.0
-torchvision==0.15.1
+torch
+torchvision
 fvcore
 xformers
 torchmetrics==0.10.3
@@ -14,7 +14,7 @@ gdown
 pandas
 imageio
 pyrender
-pytorch-lightning==1.8.1
+pytorch-lightning
 pycocotools 
 distinctipy
 # git+https://github.com/facebookresearch/segment-anything.git  # SAM
