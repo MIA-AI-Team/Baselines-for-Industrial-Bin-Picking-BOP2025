@@ -328,8 +328,7 @@ class PoseEstimator:
 
 
 class SAM6DPipeline:
-    def __init__(self, template_dir, ply_obj_path, output_dir=None, 
-                 segmentor_model="fastsam", stability_score_thresh=0.97, det_score_thresh=0.37):
+    def __init__(self, segmentor_model="fastsam", stability_score_thresh=0.97, det_score_thresh=0.37):
         """
         Initialize the SAM-6D pipeline with camera and model parameters.
         
