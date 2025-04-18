@@ -9,7 +9,7 @@ import json
 import re # For extracting camera name from filename
 import matplotlib.pyplot as plt
 from pose_interface import run_sam6d_pipeline
-
+import argparse
 # --- Helper Functions ---
 
 def calc_pose_matrix(R: np.ndarray, t: np.ndarray) -> np.ndarray:
@@ -225,12 +225,26 @@ def load_images(scene_dir: str, cam_names: List[str], image_id_str: str, img_fol
     return images
 
 if __name__ == "__main__":
-    
-    DATASET_DIR = "/content/drive/MyDrive/bpc_opencv_dataset/ipd"
+    # --- Argument Parser ---
+
+    parser = argparse.ArgumentParser(description="Run pose estimation on a dataset.")
+    parser.add_argument('--dataset_dir', type=str, default="/content/drive/MyDrive/bpc_opencv_dataset/ipd",
+                        help="Path to the dataset directory")
+    parser.add_argument('--scene_id', type=str, default="000008",
+                        help="Scene ID (e.g., 000008)")
+    parser.add_argument('--image_id', type=int, default=0,
+                        help="Image ID (e.g., 0)")
+    parser.add_argument('--object_ids', type=int, nargs='+', default=[14],
+                        help="List of object IDs to test (e.g., 14)")
+
+    args = parser.parse_args()
+
+    # --- Set Variables from Arguments ---
+    DATASET_DIR = args.dataset_dir
     MODEL_DIR = os.path.join(DATASET_DIR, "models")
-    SCENE_ID = "000008"
-    IMAGE_ID = 0
-    OBJECT_IDS_TO_TEST = [14]
+    SCENE_ID = args.scene_id
+    IMAGE_ID = args.image_id
+    OBJECT_IDS_TO_TEST = args.object_ids
 
     # --- Step 3: Prepare Paths ---
     scene_dir = os.path.join(DATASET_DIR, "test", SCENE_ID)
