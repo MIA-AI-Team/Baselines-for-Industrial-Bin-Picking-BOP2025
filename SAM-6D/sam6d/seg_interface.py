@@ -74,6 +74,8 @@ class InstanceSegmentator:
             pass
             # model.segmentor_model.model.setup_model(device=device, verbose=True)
         logging.info(f"Moving models to {device} done!")
+        print(self.cfg)
+        
         
     def predict(self, camera, template_dir, ply_obj_path, output_dir=None):
         logging.info("Initializing template")
