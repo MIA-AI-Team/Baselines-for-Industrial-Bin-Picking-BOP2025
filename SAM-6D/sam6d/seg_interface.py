@@ -59,7 +59,6 @@ class InstanceSegmentator:
             raise ValueError("The segmentor_model {} is not supported now!".format(segmentor_model))
 
         logging.info("Initializing model")
-        logging.info(self.cfg)
         print(self.cfg)
         self.model = instantiate(self.cfg.model)
 
