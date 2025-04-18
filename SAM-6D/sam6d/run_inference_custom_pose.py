@@ -34,7 +34,7 @@ def get_parser():
                         help="path to model file")
     parser.add_argument("--config",
                         type=str,
-                        default="SAM-6D/sam6d/config/base.yaml",
+                        default="config/base.yaml",
                         help="path to config file, different config.yaml use different config")
     parser.add_argument("--iter",
                         type=int,
