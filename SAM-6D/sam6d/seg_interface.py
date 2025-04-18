@@ -59,6 +59,8 @@ class InstanceSegmentator:
             raise ValueError("The segmentor_model {} is not supported now!".format(segmentor_model))
 
         logging.info("Initializing model")
+        logging.info(self.cfg)
+        print(self.cfg)
         self.model = instantiate(self.cfg.model)
 
         
@@ -74,7 +76,7 @@ class InstanceSegmentator:
             pass
             # model.segmentor_model.model.setup_model(device=device, verbose=True)
         logging.info(f"Moving models to {device} done!")
-        print(self.cfg)
+        
         
         
     def predict(self, camera, template_dir, ply_obj_path, output_dir=None):
