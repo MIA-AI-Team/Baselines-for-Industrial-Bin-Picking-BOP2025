@@ -301,7 +301,7 @@ def process_single_image(
     print("  + All required cameras found. Running pose estimation...")
     
     # Initialize estimator and run pose estimation
-    estimator = StandalonePoseEstimator()
+    
     pose_estimates = estimator.get_pose_estimates(
         object_ids=object_ids,
         cam_1=cam_1,
@@ -376,6 +376,7 @@ if __name__ == "__main__":
         print(f"Discovered cameras: {discovered_cam_names}")
 
         # --- Process each image ---
+        estimator = StandalonePoseEstimator()
         all_results = {}
         
         for image_id in image_ids_to_process:
