@@ -123,8 +123,8 @@ class FastSAM(object):
         if self.segmentor_width_size is not None:
             orig_size = image.shape[:2]
         
-        model = ultralytics.FastSAM("FastSAM-x.pt")
-        detections = model(image, retina_masks=False, imgsz=1024, conf=0.4, iou=0.9)
+        model = ultralytics.FastSAM("FastSAM-s.pt")
+        detections = model(image, retina_masks=False, imgsz=400, conf=0.4, iou=0.9)
 
         masks = detections[0].masks.data
         boxes = detections[0].boxes.data[:, :4]  # two lasts:  confidence and class
