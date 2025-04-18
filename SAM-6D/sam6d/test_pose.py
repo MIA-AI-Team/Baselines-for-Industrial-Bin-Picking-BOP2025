@@ -8,7 +8,7 @@ import glob
 import json
 import re # For extracting camera name from filename
 import matplotlib.pyplot as plt
-from pose_interface import run_sam6d_pipeline
+from pose_interface import SAM6DPipeline
 import argparse
 from pose_msgs import Pose, PoseEstimateMsg
 # --- Helper Functions ---
@@ -65,6 +65,12 @@ class Camera:
 class StandalonePoseEstimator:
     def __init__(self):
         print("Initializing StandalonePoseEstimator")
+        self.pipeline = SAM6DPipeline(
+            
+            segmentor_model="fastsam",
+            stability_score_thresh=0.97,
+            det_score_thresh=0.37
+        )
 
     def get_pose_estimates(
         self,
@@ -115,14 +121,11 @@ class StandalonePoseEstimator:
                 continue
             
             # Run SAM-6D pipeline for object detection and pose estimation
-            detections, _ = run_sam6d_pipeline(
+            detections, _ = self.pipeline.predict(
                 camera=cam_1,  # Using only cam_1
                 template_dir=template_dir,
                 ply_obj_path=ply_obj_path,
-                output_dir=output_dir,
-                segmentor_model="fastsam",
-                stability_score_thresh=0.97,
-                det_score_thresh=0.37
+                output_dir=output_dir
             )
             
             # Process the detections to create PoseEstimateMsg objects

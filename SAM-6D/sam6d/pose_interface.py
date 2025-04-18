@@ -13,7 +13,7 @@ import cv2
 import trimesh
 import pycocotools.mask as cocomask
 
-from seg_interface import run_segmentation
+from seg_interface import InstanceSegmentator
 
 
 # Path setup
@@ -326,49 +326,93 @@ class PoseEstimator:
         
         return detections, None
 
-# Main function to integrate both segmentation and pose estimation
-def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None, 
-                      segmentor_model="fastsam", stability_score_thresh=0.97, 
-                      det_score_thresh=0.37):
-    """
-    Complete SAM-6D pipeline that runs segmentation followed by pose estimation.
-    
-    Args:
-        camera: Camera object with color, depth and intrinsics
-        template_dir: Directory containing template images
-        ply_obj_path: Path to the object 3D model
-        output_dir: Directory to save results (default: directory of ply_obj_path)
-        segmentor_model: Segmentation model type ("sam" or "fastsam")
-        stability_score_thresh: Stability score threshold for segmentation
-        det_score_thresh: Detection score threshold for pose estimation
+
+class SAM6DPipeline:
+    def __init__(self, template_dir, ply_obj_path, output_dir=None, 
+                 segmentor_model="fastsam", stability_score_thresh=0.97, det_score_thresh=0.37):
+        """
+        Initialize the SAM-6D pipeline with camera and model parameters.
         
-    Returns:
-        detections: Final detections with pose estimation results
-        vis_img: Visualization of the pose estimation results
-    """
-    # If output_dir is not provided, use the directory of ply_obj_path
-    if output_dir is None:
-        output_dir = os.path.dirname(ply_obj_path)
+        Args:
+            camera: Camera object with color, depth and intrinsics
+            template_dir: Directory containing template images
+            ply_obj_path: Path to the object 3D model
+            output_dir: Directory to save results (default: directory of ply_obj_path)
+        """
+        self.segmentor_model = segmentor_model
+        self.stability_score_thresh = stability_score_thresh
+        self.det_score_thresh = det_score_thresh
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        print("=> Initializing instance segmentator...")
+        self.instance_segmentor = InstanceSegmentator(
+                                        self.stability_score_thresh,
+                                        self.segmentor_model,
+                                        self.device)
+        print("=> Initializing pose estimator...")
+
+        self.pose_estimator = PoseEstimator(det_score_thresh=det_score_thresh)
+
+        
     
-    # Ensure the output directory exists
-    os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
+    def predict(self, camera, template_dir, ply_obj_path, output_dir=None):
+        output_dir = output_dir if output_dir else os.path.dirname(ply_obj_path)
+        os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
+        print("=> Running instance segmentation...")
+        detections = self.instance_segmentor.predict(camera, template_dir, ply_obj_path, output_dir)
+        if len(detections) == 0:
+            print("No valid segmentations found.")
+            return None, None
+        
+        print("=> Running pose estimation...")
+        detections, vis_img = self.pose_estimator.run_pose_estimation(camera, detections, ply_obj_path, template_dir, output_dir)
+        
+        return detections, vis_img
     
-    # Step 1: Run instance segmentation
+        
+# # Main function to integrate both segmentation and pose estimation
+# def run_sam6d_pipeline(camera, template_dir, ply_obj_path, output_dir=None, 
+#                       segmentor_model="fastsam", stability_score_thresh=0.97, 
+#                       det_score_thresh=0.37):
+#     """
+#     Complete SAM-6D pipeline that runs segmentation followed by pose estimation.
     
-    print("=> Running instance segmentation...")
-    detections = run_segmentation(
-        camera, template_dir, ply_obj_path, 
-        segmentor_model, output_dir, stability_score_thresh, 
-    )
+#     Args:
+#         camera: Camera object with color, depth and intrinsics
+#         template_dir: Directory containing template images
+#         ply_obj_path: Path to the object 3D model
+#         output_dir: Directory to save results (default: directory of ply_obj_path)
+#         segmentor_model: Segmentation model type ("sam" or "fastsam")
+#         stability_score_thresh: Stability score threshold for segmentation
+#         det_score_thresh: Detection score threshold for pose estimation
+        
+#     Returns:
+#         detections: Final detections with pose estimation results
+#         vis_img: Visualization of the pose estimation results
+#     """
+#     # If output_dir is not provided, use the directory of ply_obj_path
+#     if output_dir is None:
+#         output_dir = os.path.dirname(ply_obj_path)
     
-    # Step 2: Initialize pose estimator
-    print("=> Initializing pose estimator...")
-    pose_estimator = PoseEstimator(det_score_thresh=det_score_thresh)
+#     # Ensure the output directory exists
+#     os.makedirs(f"{output_dir}/sam6d_results", exist_ok=True)
     
-    # Step 3: Run pose estimation
-    print("=> Running pose estimation...")
-    detections, vis_img = pose_estimator.run_pose_estimation(
-        camera, detections, ply_obj_path, template_dir, output_dir
-    )
+#     # Step 1: Run instance segmentation
     
-    return detections, vis_img
+#     print("=> Running instance segmentation...")
+#     detections = run_segmentation(
+#         camera, template_dir, ply_obj_path, 
+#         segmentor_model, output_dir, stability_score_thresh, 
+#     )
+    
+#     # Step 2: Initialize pose estimator
+#     print("=> Initializing pose estimator...")
+#     pose_estimator = PoseEstimator(det_score_thresh=det_score_thresh)
+    
+#     # Step 3: Run pose estimation
+#     print("=> Running pose estimation...")
+#     detections, vis_img = pose_estimator.run_pose_estimation(
+#         camera, detections, ply_obj_path, template_dir, output_dir
+#     )
+    
+#     return detections, vis_img
