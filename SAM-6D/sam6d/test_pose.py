@@ -109,7 +109,7 @@ class StandalonePoseEstimator:
             
             # Add image ID suffix to output directory if provided
             if output_suffix:
-                output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}_{output_suffix}")
+                output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}/{output_suffix}")
             else:
                 output_dir = os.path.join(DATASET_DIR, "results", f"obj_{object_id:06d}")
                 
