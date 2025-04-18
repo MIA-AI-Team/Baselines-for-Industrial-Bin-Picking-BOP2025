@@ -94,7 +94,7 @@ class FastSAM(object):
         #     selected_device=device,
         #     segmentor_width_size=segmentor_width_size,
         # )
-        self.model = ultralytics.FastSAM("FastSAM-s.pt")
+        self.model = ultralytics.FastSAM("FastSAM-s.pt", ch=1)
 
         self.segmentor_width_size = segmentor_width_size
         self.current_device = device
@@ -122,7 +122,7 @@ class FastSAM(object):
     def generate_masks(self, image) -> List[Dict[str, Any]]:
         if self.segmentor_width_size is not None:
             orig_size = image.shape[:2]
-        detections = self.model(image, retina_masks=True, imgsz=640, conf=0.4, iou=0.9)
+        detections = self.model(image[:,:,0], retina_masks=True, imgsz=640, conf=0.4, iou=0.9)
 
         masks = detections[0].masks.data
         boxes = detections[0].boxes.data[:, :4]  # two lasts:  confidence and class
