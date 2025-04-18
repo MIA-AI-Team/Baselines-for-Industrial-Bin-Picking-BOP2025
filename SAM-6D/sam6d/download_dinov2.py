@@ -29,7 +29,7 @@ def download_model(url, output_path):
     config_name="download",
 )
 def download(cfg: DictConfig) -> None:
-    model_name = "dinov2_vits14" # default segmentation model used in CNOS
+    model_name = "dinov2_vitl14" # default segmentation model used in CNOS
     save_dir = osp.join(get_root_project(), "checkpoints/dinov2")
     os.makedirs(save_dir, exist_ok=True)
     download_model(model_dict[model_name], save_dir)
